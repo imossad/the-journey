@@ -195,13 +195,18 @@ body::before{ content:""; position:fixed; inset:0; pointer-events:none; opacity:
 .incoming .in-from{ font-family:'Amiri',serif; font-weight:700; font-size:14px; color:var(--coral); margin-bottom:4px; }
 .incoming .in-body{ font-size:15px; line-height:1.6; margin-bottom:10px; }
 .incoming .in-body .chip{ display:inline-flex; gap:4px; background:rgba(255,255,255,.7); padding:3px 8px; border-radius:8px; font-weight:700; font-size:13px; margin:0 2px; }
-.mapfab{ position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:30;
+.mapfab{ position:fixed; bottom:88px; left:50%; transform:translateX(-50%); z-index:30;
   display:flex; align-items:center; gap:8px; cursor:pointer; border:none; font-family:'Marhey',sans-serif;
-  font-weight:700; font-size:14px; color:#fff; padding:12px 20px; border-radius:30px;
+  font-weight:700; font-size:13px; color:#fff; padding:10px 16px; border-radius:30px;
   background:linear-gradient(135deg,var(--sea),var(--plum)); box-shadow:0 10px 24px -8px rgba(46,111,142,.7); }
 .mapfab:active{ transform:translateX(-50%) translateY(2px); }
-.msgfab{ position:fixed; bottom:16px; right:14px; z-index:31; width:54px; height:54px; border-radius:50%; border:none; cursor:pointer;
-  font-size:22px; color:#fff; background:linear-gradient(135deg,var(--coral),var(--gold)); box-shadow:0 8px 20px -6px rgba(232,128,107,.7); position:fixed; }
+.msgfab{ position:fixed; bottom:88px; right:14px; z-index:31; width:50px; height:50px; border-radius:50%; border:none; cursor:pointer;
+  font-size:21px; color:#fff; background:linear-gradient(135deg,var(--coral),var(--gold)); box-shadow:0 8px 20px -6px rgba(232,128,107,.7); }
+/* end-turn / advance is a fixed bottom bar so it's ALWAYS reachable (never under the FABs) */
+.actionbar{ position:fixed; left:0; right:0; bottom:0; z-index:46; padding:10px 16px calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg, rgba(251,246,236,0), #fbf6ec 34%); }
+.actionbar .btn{ margin:0; box-shadow:0 10px 26px -6px rgba(232,128,107,.6); }
+#screen-play{ padding-bottom:96px; }
 .msg-badge{ position:absolute; top:-4px; right:-4px; min-width:20px; height:20px; border-radius:10px; background:#c0392b; color:#fff;
   font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 5px; border:2px solid #fff; }
 .msgfab.pulse{ animation:msgpulse 1.2s ease-in-out infinite; }
@@ -2236,7 +2241,7 @@ function renderActive(){
   renderChoices('stopChoices', m, st, false);
   const adv=$('advanceBtn');
   const chose = m.acted || (m.chosen && m.chosen[m.stop]);   // acted this turn (even if now at a new stop)
-  if(isFinishStop(st) && !m.arrived){ adv.textContent=T('🏁 وقّد المنارة — وصلت!','🏁 Light the lighthouse — you arrived!'); adv.onclick=advance; }
+  if(isFinishStop(st) && !m.arrived){ adv.textContent=T('🏁 وصلت النهاية — خلّص! ▸','🏁 You reached the finale — finish! ▸'); adv.onclick=advance; }
   else if(m.arrived){ adv.textContent=T('خلّص دورك ▸','End your turn ▸'); adv.onclick=advance; }
   else if(!chose){ adv.textContent=T('اختار حركة من فوق الأول ▴','Pick a move above first ▴'); adv.onclick=()=>toast(T('👆 اختار حركة من المحطة الأول','👆 Pick a move at the stop first')); }
   else {
@@ -2609,6 +2614,7 @@ async function passTurn(){
     if(next===0) round++;            // wrapped past the last player → new round
     const uid=order[next];
     if(ROOM.players[uid] && ROOM.players[uid].frozen){ updates['players/'+uid+'/frozen']=false; continue; } // skip & thaw
+    if(ROOM.players[uid] && ROOM.players[uid].arrived){ continue; } // arrived players are done — skip their turns
     break;
   } while(guard++<order.length*2);
   updates.turnUid=order[next]; updates.round=round;
