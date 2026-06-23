@@ -313,6 +313,8 @@ textarea.offer-text{ width:100%; min-height:70px; border-radius:12px; border:1.5
 .intro-how{ background:rgba(255,255,255,.7); border:1.5px solid var(--lantern,#f0c46c); border-radius:14px; padding:12px 14px; margin:14px 0; text-align:right; }
 .intro-how-head{ font-family:'Marhey'; font-weight:700; color:var(--sea,#2e6f8e); margin-bottom:6px; text-align:center; }
 .intro-how-body{ font-size:13.5px; line-height:1.8; } .intro-how-body p{ margin:7px 0; }
+.join-worldtag{ display:inline-block; background:var(--lantern,#f0c46c); color:#3a2c12; font-family:'Marhey'; font-weight:700;
+  font-size:14px; padding:7px 16px; border-radius:20px; margin:6px auto 4px; }
 .spacer{ height:76px; }
 .lang-toggle{ position:absolute; top:12px; left:12px; z-index:5; border:1px solid var(--paper-edge); background:rgba(255,255,255,.8);
   border-radius:20px; padding:6px 12px; font-family:'Marhey'; font-size:13px; font-weight:700; color:var(--deep); cursor:pointer; }
@@ -406,9 +408,8 @@ textarea.offer-text{ width:100%; min-height:70px; border-radius:12px; border:1.5
       <input id="joinCode" class="name-input code-input" placeholder="ABCD" maxlength="4" oninput="this.value=this.value.toUpperCase(); if(this.value.length===4) peekRoomWorld();">
       <div style="height:10px;"></div>
       <input id="joinName" class="name-input" placeholder="اكتب اسمك" maxlength="12">
-      <div class="section-label" id="lblJoinChar">شخصيتك</div>
-      <div class="row-scroll" id="joinAvatarRow"></div>
-      <div style="height:12px;"></div>
+      <div class="join-worldtag" id="joinWorldTag" style="display:none;"></div>
+      <div class="sm-hint" id="joinCharNote">هتختار شخصيتك جوّه الأوضة بعد ما تدخل 👇</div>
       <button class="btn" id="joinBtn" onclick="doJoin()">ادخل ▸</button>
       <div style="height:8px;"></div>
       <button class="btn ghost" id="joinBack" onclick="go('landing')">رجوع</button>
@@ -2011,20 +2012,16 @@ async function hostCreate(){
 
 /* ---------- JOIN ---------- */
 let joinWorld='mermaid';
-function renderJoinAvatars(){
-  const w=WORLDS[joinWorld]||WORLDS.mermaid;
-  const ar=$('joinAvatarRow'); if(!ar) return; ar.innerHTML='';
-  w.avatars.forEach((av,i)=>{ const c=document.createElement('div'); c.className='pick'+(joinSel.avatar===i?' sel':'');
-    c.innerHTML='<div class="pe">'+av.emoji+'</div><div class="pn">'+av.name+'</div>';
-    c.onclick=()=>{ joinSel.avatar=i; renderJoinAvatars(); }; ar.appendChild(c); });
-}
-// when a full code is typed, peek the room to show THAT world's characters
+function renderJoinAvatars(){ /* join-screen picker removed — characters are chosen in the lobby (world-accurate) */ }
+// when a full code is typed, show WHICH world this room is, for all worlds
 async function peekRoomWorld(){
   const code=($('joinCode').value||'').trim().toUpperCase();
   if(code.length<4 || !ONLINE) return;
   try{ const snap=await DB.ref('rooms/'+code).get(); const rm=snap.val();
-    if(rm && rm.world && WORLDS[rm.world]){ joinWorld=rm.world; joinSel.avatar=0; renderJoinAvatars();
-      const sub=$('joinSub'); if(sub) sub.textContent=T('عالم: ','World: ')+(LANG==='en'?(WORLDS[rm.world].name_en||WORLDS[rm.world].name):WORLDS[rm.world].name); }
+    const tag=$('joinWorldTag');
+    if(rm && rm.world && WORLDS[rm.world]){ joinWorld=rm.world; const w=WORLDS[rm.world];
+      if(tag){ tag.style.display=''; tag.textContent=w.emoji+' '+T('العالم: ','World: ')+(LANG==='en'?(w.name_en||w.name):w.name); }
+    } else if(tag){ tag.style.display='none'; }
   }catch(e){}
 }
 async function doJoin(){
@@ -2034,11 +2031,11 @@ async function doJoin(){
   if(!ONLINE){ toast(T('مفيش اتصال بالسيرفر','No server connection')); return; }
   try{
     await NET.joinRoom(code);
-    // avoid duplicate tokens: if my pick is taken, grab the next free avatar
+    // assign the first FREE character from the room's ACTUAL world (player re-picks in the lobby)
     const snap=await roomRef.get(); const rm=snap.val();
+    const w=WORLDS[rm.world]||WORLDS.mermaid;
     const taken=new Set(Object.values(rm.players||{}).map(p=>p.avatarIdx));
-    let av=joinSel.avatar; const w=WORLDS[rm.world]||WORLDS.mermaid;
-    if(taken.has(av)){ for(let i=0;i<w.avatars.length;i++){ if(!taken.has(i)){ av=i; break; } } toast(T('الشخصية دي محجوزة — اخترنالك واحدة تانية','That character is taken — we picked another for you')); }
+    let av=0; for(let i=0;i<w.avatars.length;i++){ if(!taken.has(i)){ av=i; break; } }
     await NET.addPlayer(name, av);
     bindRoom();
     enterLobby();
@@ -2995,7 +2992,7 @@ function applyStaticStrings(){
   set('joinTitle','ادخل غرفة','Join a room');
   set('joinSub','اكتب الكود اللي ظهر عند صاحب الغرفة','Enter the code from the host');
   ph('joinName','اكتب اسمك','Enter your name');
-  set('lblJoinChar','شخصيتك','Your character');
+  { const jc=$('joinCharNote'); if(jc) jc.textContent=T('هتختار شخصيتك جوّه الأوضة بعد ما تدخل 👇','You\'ll pick your character inside the room after joining 👇'); }
   set('joinBtn','ادخل ▸','Join ▸');
   set('joinBack','رجوع','Back');
   // lobby
