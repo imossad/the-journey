@@ -430,6 +430,8 @@ textarea.offer-text{ width:100%; min-height:70px; border-radius:12px; border:1.5
     </div>
     <div class="section-label" id="lblLobbyPlayers">اللاعبين اللي دخلوا</div>
     <div id="lobbyPlayers"></div>
+    <div class="section-label" id="lblLobbyChar">شخصيتك في العالم ده — اختار أو غيّر</div>
+    <div class="row-scroll" id="lobbyAvatarRow"></div>
     <div style="height:12px;"></div>
     <button class="btn" id="lobbyStartBtn" onclick="startGame()" disabled>مستنيين لاعب تاني…</button>
     <div style="height:8px;"></div>
@@ -2070,14 +2072,34 @@ function renderLobby(){
   $('lobbyCode').textContent=ROOM.code||roomCode;
   const order=Object.keys(ROOM.order||{}).sort((a,b)=>ROOM.order[a]-ROOM.order[b]);
   const box=$('lobbyPlayers'); box.innerHTML='';
+  const taken={};
   order.forEach(uid=>{ const p=ROOM.players?ROOM.players[uid]:null; if(!p) return;
+    taken[p.avatarIdx||0]=uid;
     const el=document.createElement('div'); el.className='lobby-p';
-    el.innerHTML='<span class="lp-av">'+w.avatars[p.avatarIdx||0].emoji+'</span><span class="lp-name">'+p.name+(uid===myUid?' (إنت)':'')+'</span>'+(uid===ROOM.host?'<span class="lp-host">صاحب الغرفة</span>':'');
+    el.innerHTML='<span class="lp-av">'+w.avatars[p.avatarIdx||0].emoji+'</span><span class="lp-name">'+p.name+(uid===myUid?T(' (إنت)',' (you)'):'')+'</span>'+(uid===ROOM.host?'<span class="lp-host">'+T('صاحب الغرفة','host')+'</span>':'');
     box.appendChild(el); });
+  // character picker — always the ACTUAL room world's avatars; taken ones disabled
+  const me_raw=ROOM.players?ROOM.players[myUid]:null; const myIdx=me_raw?(me_raw.avatarIdx||0):0;
+  const lbl=$('lblLobbyChar'); if(lbl) lbl.textContent=T('شخصيتك في العالم ده — اختار أو غيّر','Your character in this world — pick or change');
+  const ar=$('lobbyAvatarRow'); if(ar){ ar.innerHTML='';
+    w.avatars.forEach((av,i)=>{ const c=document.createElement('div');
+      const mine=(i===myIdx); const used=(taken[i]!==undefined && taken[i]!==myUid);
+      c.className='pick'+(mine?' sel':'')+(used?' used':'');
+      c.innerHTML='<div class="pe">'+av.emoji+'</div><div class="pn">'+av.name+'</div>';
+      if(!used) c.onclick=()=>setLobbyAvatar(i);
+      ar.appendChild(c); });
+  }
   const n=order.length;
   const btn=$('lobbyStartBtn');
   if(n>=2){ btn.disabled=false; btn.textContent=T('يلا نبدأ! (','Start! (')+AR(n)+T(' لاعبين) ▸',' players) ▸'); }
   else { btn.disabled=true; btn.textContent=T('مستنيين لاعب تاني…','Waiting for another player…'); }
+}
+async function setLobbyAvatar(i){
+  // don't grab a character someone else already has
+  const order=Object.keys(ROOM.order||{}); let used=false;
+  order.forEach(uid=>{ if(uid!==myUid && ROOM.players[uid] && (ROOM.players[uid].avatarIdx||0)===i) used=true; });
+  if(used){ toast(T('الشخصية دي محجوزة','That character is taken')); return; }
+  await patchPlayer(myUid, { avatarIdx:i });
 }
 function drawQR(){
   const box=$('lobbyQR'); if(!box) return; box.innerHTML='';
@@ -2981,6 +3003,7 @@ function applyStaticStrings(){
   set('lblLobbyCode','الكود — قوله لأصحابك','The code — share it with friends');
   set('lobbyQRtag','أو يمسحوا الـ QR','or scan the QR');
   set('lblLobbyPlayers','اللاعبين اللي دخلوا','Players in the room');
+  set('lblLobbyChar','شخصيتك في العالم ده — اختار أو غيّر','Your character in this world — pick or change');
   set('leaveBtn','اخرج','Leave');
   // how-to modal
   set('howtoTitle','إزاي نلعب','How to play');
