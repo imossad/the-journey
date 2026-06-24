@@ -289,6 +289,11 @@ textarea.offer-text{ width:100%; min-height:70px; border-radius:12px; border:1.5
 .spec-opt{ background:rgba(255,255,255,.9); border:1px solid var(--paper-edge,#d8cdb8); border-radius:10px; padding:9px 12px; margin-top:6px; font-size:14px; }
 .spec-opt.right{ background:#cdebd0; border-color:#5fae6b; font-weight:700; }
 .spec-opt.picked-wrong{ background:#f3d0cc; border-color:#d98a7a; }
+.spec-ans{ width:100%; text-align:right; font-family:inherit; cursor:pointer; transition:transform .1s; }
+.spec-ans:not(:disabled):active{ transform:scale(.98); }
+.spec-ans.mine{ background:#dceaf5; border-color:var(--sea,#2e6f8e); font-weight:700; }
+.roster{ margin-top:10px; font-size:13px; }
+.ros-line{ padding:4px 0; font-weight:600; } .ros-wait{ color:var(--coral,#e8806b); }
 .spec-q{ font-weight:700; font-size:15px; margin-bottom:8px; }
 .predict-row,.judge-row{ display:flex; gap:8px; margin-top:10px; }
 .predict-row button,.judge-row button{ flex:1; border:none; border-radius:12px; padding:11px; font-family:'Marhey'; font-weight:700; font-size:14px; cursor:pointer; }
@@ -515,6 +520,7 @@ textarea.offer-text{ width:100%; min-height:70px; border-radius:12px; border:1.5
       <button class="btn coral" id="watchOfferBtn" onclick="openOffer()">📨 ابعت عرض / كلام للّي دوره</button>
       <div style="height:8px;"></div>
       <button class="btn ghost" id="gangBtn" onclick="openGangUp()" style="display:none;">😈 حرّض لاعب تاني عليه</button>
+      <button class="btn ghost" id="skipBtn" onclick="skipAwayPlayer()" style="display:none; margin-top:8px;">⏭️ عدّي دوره</button>
     </div>
 
     <!-- REACTIONS BAR (everyone, every turn) -->
@@ -767,7 +773,9 @@ function setLang(l){ LANG=l; document.documentElement.lang = (l==='en'?'en':'ar'
   if(ROOM && ROOM.started){ try{ renderPlay(); }catch(e){} } if($('screen-lobby')&&$('screen-lobby').classList.contains('active')) renderLobby();
   const lb=$('langBtn'); if(lb) lb.textContent = LANG==='en'?'🇪🇬 عربي':'🇬🇧 English';
 }
-function go(n){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $('screen-'+n).classList.add('active'); window.scrollTo(0,0); }
+let currentScreen='landing';
+function go(n){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $('screen-'+n).classList.add('active'); window.scrollTo(0,0);
+  currentScreen=n; if(n==='play') startTurnTicker(); else stopTurnTicker(); }
 function openModal(id){ $(id).classList.add('open'); if(id==='mapModal'){ const b=$('mapReturnBar'); if(b) b.classList.add('show'); } }
 function closeModal(id){ $(id).classList.remove('open'); if(id==='mapModal'){ const b=$('mapReturnBar'); if(b) b.classList.remove('show'); } }
 function toast(m){ const t=$('toast'); t.innerHTML=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2000); }
@@ -2123,7 +2131,7 @@ async function startGame(){
   const w=WORLDS[ROOM.world]; const len=(ROOM.raceLen||8);
   const race=drawRace(w.pool||[], len);
   const raceIds=race.map(s=>s.id);
-  const updates={ started:true, turnUid:order[0], round:1, anyArrived:false, race:raceIds, turnState:null };
+  const updates={ started:true, turnUid:order[0], round:1, anyArrived:false, race:raceIds, turnState:null, turnAt:Date.now() };
   order.forEach(uid=>{ updates['players/'+uid+'/hand']=[mk(),mk(),mk()]; updates['players/'+uid+'/points']=0;
     updates['players/'+uid+'/total']=0; updates['players/'+uid+'/stop']=0; updates['players/'+uid+'/chosen']={};
     updates['players/'+uid+'/arrived']=false; updates['players/'+uid+'/missionProg']=0; updates['players/'+uid+'/missionDone']=false; updates['players/'+uid+'/acted']=false; });
@@ -2259,8 +2267,21 @@ function renderWatch(){
   const cards=(m.hand||[]).map(c=>c.emoji+T(c.name,c.name_en||c.name)).join('، ')||T('مفيش كروت','no cards');
   const posTxt = m.stop>act.stop ? T('إنت قدّامه — اضغط عليه!','You\'re ahead — pressure them!') : (m.stop<act.stop ? T('إنت وراه — اتحالف معاه!','You\'re behind — ally with them!') : T('إنتوا في نفس المكان!','You\'re neck and neck!'));
   $('watchLeverage').innerHTML=T('💪 <b>ورقتك للمساومة:</b> ','💪 <b>Your leverage:</b> ')+T('كروتك','cards')+' ('+cards+') · '+posTxt;
+  renderSkip();
   renderSpectatorLive();
 }
+// AFK skip button — counts down, then anyone can skip the away player
+function renderSkip(){
+  const btn=$('skipBtn'); if(!btn||!ROOM) return;
+  if(isMyTurn()){ btn.style.display='none'; return; }
+  btn.style.display='';
+  const left=Math.ceil(AFK_SECONDS-((Date.now()-(ROOM.turnAt||0))/1000));
+  if(left>0){ btn.disabled=true; btn.textContent=T('⏳ تقدر تعدّي دوره بعد ','⏳ You can skip them in ')+AR(left)+T(' ث','s'); }
+  else { btn.disabled=false; btn.textContent=T('⏭️ عدّي دور '+active().name+' (مشغول)','⏭️ Skip '+active().name+' (away)'); }
+}
+let _tick=null;
+function startTurnTicker(){ if(_tick) return; _tick=setInterval(()=>{ if(currentScreen==='play' && S && !isMyTurn()) renderSkip(); }, 1000); }
+function stopTurnTicker(){ if(_tick){ clearInterval(_tick); _tick=null; } }
 
 // === the live mirror of what the active player is facing ===
 function renderSpectatorLive(){
@@ -2269,30 +2290,30 @@ function renderSpectatorLive(){
   if(!ts || !act || ts.by!==act.uid){ tag.textContent=T('🔎 بيتفرّج…','🔎 Watching…'); body.textContent=T('لسه بيفكّر في حركته…','Still deciding their move…'); return; }
   if(ts.phase==='choosing'){ tag.textContent=T('🔎 بيتفرّج','🔎 Watching'); body.textContent=act.name+T(' بيختار حركته من المحطة…',' is choosing a move…'); return; }
   if(ts.phase==='trivia'){
-    tag.textContent=T('🧠 سؤال','🧠 Quiz');
+    tag.textContent=T('🧠 سؤال للكل','🧠 Quiz — everyone!');
     body.innerHTML='<div class="spec-q">'+ (ts.q||'') +'</div>';
+    const myAns = ts.answers && ts.answers[myUid]!=null ? ts.answers[myUid] : null;
     (ts.opts||[]).forEach((opt,i)=>{
-      const d=document.createElement('div'); d.className='spec-opt';
-      if(ts.revealed){ if(i===ts.answer) d.classList.add('right'); if(i===ts.picked && i!==ts.answer) d.classList.add('picked-wrong'); }
-      d.textContent=(ts.revealed&&i===ts.picked?'👉 ':'')+opt; body.appendChild(d);
+      const d=document.createElement('button'); d.className='spec-opt spec-ans';
+      if(ts.revealed){ if(i===ts.answer) d.classList.add('right'); if(i===myAns && i!==ts.answer) d.classList.add('picked-wrong'); d.disabled=true; }
+      else if(myAns!=null){ if(i===myAns) d.classList.add('mine'); d.disabled=true; }
+      else { d.onclick=()=>answerRound(ts,i); }
+      d.textContent=(ts.revealed&&i===ts.answer?'✅ ':'')+(i===myAns?'👉 ':'')+opt; body.appendChild(d);
     });
+    // pending roster — who still hasn't answered
+    const ans=ts.answers||{}; const racers=S.players.filter(p=>!p.arrived);
+    const pending=racers.filter(p=>ans[p.uid]==null).map(p=>p.name);
+    const answered=racers.filter(p=>ans[p.uid]!=null).map(p=>p.name);
+    const roster=document.createElement('div'); roster.className='roster';
     if(!ts.revealed){
-      // PREDICTION: will they get it right?
-      const myPred = _myPredict[ts.ts];
-      const row=document.createElement('div'); row.className='predict-row';
-      const yes=document.createElement('button'); yes.className='pred-yes'+(myPred==='yes'?' sel':''); yes.textContent=T('🎯 هيعرفها','🎯 Nails it');
-      const no=document.createElement('button'); no.className='pred-no'+(myPred==='no'?' sel':''); no.textContent=T('😬 هيغلط','😬 Flops it');
-      yes.onclick=()=>predict(ts,'yes'); no.onclick=()=>predict(ts,'no');
-      const hint=document.createElement('div'); hint.className='predict-done'; hint.textContent=T('توقّع: هيعرفها ولا لأ؟ (لو صح +٢)','Predict: will they get it? (+2 if right)'); inter.appendChild(hint);
-      row.appendChild(yes); row.appendChild(no); inter.appendChild(row);
+      roster.innerHTML='<div class="ros-line">✅ '+T('جاوبوا','Answered')+' ('+AR(answered.length)+'): '+(answered.join('، ')||'—')+'</div>'+
+        '<div class="ros-line ros-wait">⏳ '+T('مستنيين','Waiting')+' ('+AR(pending.length)+'): '+(pending.join('، ')||'—')+'</div>'+
+        (myAns!=null?'<div class="predict-done">'+T('جاوبت ✓ — مستني الباقي','Answered ✓ — waiting for others')+'</div>':'');
     } else {
-      const correct = ts.picked===ts.answer;
-      const note=document.createElement('div'); note.className='predict-done';
-      const myPred=_myPredict[ts.ts];
-      if(myPred){ const won=(myPred==='yes')===correct; note.textContent = won?T('✅ توقّعك صح! +٢','✅ Right prediction! +2'):T('❌ توقّعك غلط','❌ Wrong prediction'); }
-      else note.textContent = correct?T('✔️ جاوب صح','✔️ They got it right'):T('✖️ جاوب غلط','✖️ They got it wrong');
-      inter.appendChild(note);
+      const correct = myAns===ts.answer;
+      roster.innerHTML='<div class="predict-done">'+(myAns==null?T('⏰ معرفتش تجاوب في الوقت','⏰ You didn\'t answer in time'):(correct?T('✅ إجابتك صح! +٢','✅ Correct! +2'):T('❌ إجابتك غلط','❌ Wrong')))+'</div>';
     }
+    inter.appendChild(roster);
     return;
   }
   if(ts.phase==='dare'||ts.phase==='judging'){
@@ -2312,19 +2333,20 @@ function renderSpectatorLive(){
   tag.textContent=T('🔎 بيتفرّج','🔎 Watching'); body.textContent=act.name+T(' بيلعب دوره…',' is taking their turn…');
 }
 
-// predictions (spectator guesses trivia outcome)
-let _myPredict={}, _predictAwarded={};
-async function predict(ts, val){
-  _myPredict[ts.ts]=val; renderSpectatorLive();
-  try{ await NET.setPredict(myUid, {v:val, ts:ts.ts}); }catch(e){}
+// SIMULTANEOUS ANSWERING — spectators answer the same question in parallel
+let _ansAwarded={};
+async function answerRound(ts, idx){
+  if(!ts || ts.revealed) return;
+  try{ await DB.ref('rooms/'+(ROOM.code||roomCode)+'/turnState/answers/'+myUid).set(idx); }catch(e){}
+  renderWatch();
 }
-// award my prediction once when revealed
+// when revealed, award myself +2 if I (a spectator) answered correctly — once
 async function maybeAwardPredict(){
   const ts=ROOM&&ROOM.turnState; if(!ts||ts.phase!=='trivia'||!ts.revealed) return;
-  if(_predictAwarded[ts.ts]) return; const myPred=_myPredict[ts.ts]; if(!myPred) return;
-  _predictAwarded[ts.ts]=true;
-  const correct=ts.picked===ts.answer; const won=(myPred==='yes')===correct;
-  if(won){ const raw=myPlayerRaw(); if(raw) await patchMe({ points:(raw.points||0)+2, total:(raw.total||0)+2 }); }
+  if(ts.by===myUid) return; // the active player scores via their own answer flow
+  if(_ansAwarded[ts.ts]) return; const myAns=ts.answers?ts.answers[myUid]:null; if(myAns==null) return;
+  _ansAwarded[ts.ts]=true;
+  if(myAns===ts.answer){ const raw=myPlayerRaw(); if(raw) await patchMe({ points:(raw.points||0)+2, total:(raw.total||0)+2 }); }
 }
 // table judging vote
 async function castVote(v){ try{ await NET.setVote(myUid, v); }catch(e){} }
@@ -2540,8 +2562,8 @@ function openTrivia(ch, idx){
 }
 async function answerTrivia(i){
   const ch=_trivia; const m=me(); const raw=myPlayerRaw(); closeModal('triviaModal');
-  // reveal to spectators (so their predictions resolve)
-  await pubTurn({ phase:'trivia', revealed:true, picked:i });
+  // record my own answer + reveal to everyone (so all answers resolve together)
+  await pubTurn({ phase:'trivia', revealed:true, picked:i, ['answers/'+myUid]:i });
   const patch={ ['chosen/'+m.stop]:true, acted:true };
   if(i===ch.answer){ applyGain(patch,raw,ch.pts||5); toast(T('🧠 صح! ','🧠 Correct! ')+(loc(ch,'fact')||'')+' +'+AR(ch.pts||5)); const d=deriveStopAndMission(patch,raw,'earn'); }
   else { applyGain(patch,raw,ch.penalty||-2); toast(T('❌ غلط! الصح: ','❌ Wrong! Answer: ')+(loc(ch,'opts')||ch.opts)[ch.answer]+'. '+(loc(ch,'fact')||'')); }
@@ -2601,6 +2623,20 @@ async function advance(){
   await passTurn();
 }
 
+const AFK_SECONDS = 75;   // after this, anyone can skip the away player
+// anyone can skip the active player once their turn has been idle past the timeout
+async function skipAwayPlayer(){
+  if(!S || !ROOM) return;
+  const away=active(); if(!away) return;
+  if(away.isMe){ toast(T('ده دورك إنت 🙂','That\'s your own turn 🙂')); return; }
+  const since=(Date.now()-(ROOM.turnAt||0))/1000;
+  if(since < AFK_SECONDS){ toast(T('استنى شوية لسه بيفكّر','Give them a moment')); return; }
+  // clear their half-finished move + reset acted, then pass the turn
+  try{ await NET.setPlayer(away.uid, { acted:false }); }catch(e){}
+  logEventDB('⏭️', T('القعدة عدّت دور ','The table skipped ')+away.name+T(' (مشغول)',' (away)'));
+  await passTurn();
+  toast(T('⏭️ عدّينا دوره','⏭️ Skipped their turn'));
+}
 async function passTurn(){
   const order=Object.keys(ROOM.order||{}).sort((a,b)=>ROOM.order[a]-ROOM.order[b]);
   if(!order.length) return;
@@ -2618,6 +2654,7 @@ async function passTurn(){
     break;
   } while(guard++<order.length*2);
   updates.turnUid=order[next]; updates.round=round;
+  updates.turnAt=Date.now();   // when this turn started — used for the AFK skip
   updates.turnState=null;   // wipe the spectator live-state for the next player
   await NET.update(updates);
 }
@@ -2915,9 +2952,11 @@ function renderMapLive(){
   if(!ts || ts.by!==act.uid || ts.phase==='choosing'){ html=T('بيختار حركته من المحطة…','choosing a move at the stop…'); }
   else if(ts.phase==='trivia'){
     html='<div class="bl-q">🧠 '+(ts.q||'')+'</div>';
-    (ts.opts||[]).forEach((o,i)=>{ const cls = ts.revealed ? (i===ts.answer?'right':(i===ts.picked?'wrong':'')) : '';
-      html+='<div class="bl-opt '+cls+'">'+(ts.revealed&&i===ts.picked?'👉 ':'')+o+'</div>'; });
-    if(!ts.revealed) html+='<div class="bl-note">'+T('قوله يختار إيه! 👀','Tell them what to pick! 👀')+'</div>';
+    (ts.opts||[]).forEach((o,i)=>{ const cls = ts.revealed ? (i===ts.answer?'right':'') : '';
+      html+='<div class="bl-opt '+cls+'">'+(ts.revealed&&i===ts.answer?'✅ ':'')+o+'</div>'; });
+    if(!ts.revealed){ const ans=ts.answers||{}; const racers=S.players.filter(p=>!p.arrived);
+      const pending=racers.filter(p=>ans[p.uid]==null).map(p=>p.name);
+      html+='<div class="bl-note">⏳ '+T('مستنيين','Waiting')+': '+(pending.join('، ')||'—')+'</div>'; }
   } else if(ts.phase==='dare'||ts.phase==='judging'){
     html='<div class="bl-q">'+(ts.kind==='truth'?'🫢 ':(ts.kind==='brain'?'🧩 ':'🍷 '))+T('لازم: ','Must: ')+'</div><div class="bl-opt">'+(ts.dareText||'')+'</div>';
     if(ts.phase==='judging') html+='<div class="bl-note">'+T('القعدة بتحكم: عملها؟','The table is judging: did they do it?')+'</div>';
