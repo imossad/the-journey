@@ -247,21 +247,23 @@ body::before{ content:""; position:fixed; inset:0; pointer-events:none; opacity:
 textarea.offer-text{ width:100%; min-height:70px; border-radius:12px; border:1.5px solid var(--paper-edge);
   padding:10px; font-family:'Marhey'; font-size:14px; resize:vertical; background:rgba(255,255,255,.8); }
 .points-row{ display:flex; align-items:center; gap:10px; justify-content:center; margin:8px 0; }
-.map-canvas{ position:relative; border-radius:18px; overflow:hidden; min-height:60vh;
-  background:radial-gradient(80% 60% at 70% 20%, rgba(240,196,108,.3), transparent 60%),
-    linear-gradient(180deg,#cfe7ec 0%,#9ec9d6 40%,#6da7bd 100%); box-shadow:inset 0 0 40px rgba(27,43,70,.2); }
+.map-canvas{ position:relative; border-radius:18px; overflow:hidden; min-height:64vh; direction:ltr;
+  background:linear-gradient(180deg,#cfe7ec,#6da7bd); box-shadow:inset 0 0 40px rgba(27,43,70,.25); }
 .map-path{ position:absolute; inset:0; width:100%; height:100%; }
-.map-stop{ position:absolute; transform:translate(50%,-50%); display:flex; flex-direction:column; align-items:center; gap:3px; }
+.map-stop{ position:absolute; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:3px; }
 .map-stop .ms-dot{ width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  font-size:14px; background:#fff; box-shadow:0 4px 10px -3px var(--shadow),0 0 0 3px rgba(255,255,255,.6); border:2px solid var(--sea); }
+  font-size:14px; background:#fff; box-shadow:0 4px 10px -3px var(--shadow),0 0 0 3px rgba(255,255,255,.55); border:2px solid var(--sea); }
 .map-stop.done .ms-dot{ background:var(--gold); border-color:var(--coral); }
-.map-stop.finish .ms-dot{ background:var(--coral); border-color:#fff; color:#fff; width:38px; height:38px; font-size:18px; }
-.map-stop .ms-label{ font-family:'Amiri',serif; font-weight:700; font-size:9.5px; color:var(--deep);
-  background:rgba(255,255,255,.78); padding:1px 6px; border-radius:8px; white-space:nowrap; max-width:88px; overflow:hidden; text-overflow:ellipsis; }
-.map-token{ position:absolute; transform:translate(50%,-115%); font-size:24px; z-index:5;
-  filter:drop-shadow(0 4px 5px var(--shadow)); transition:top .6s,right .6s; }
+.map-stop.finish .ms-dot{ background:var(--coral); border-color:#fff; color:#fff; width:40px; height:40px; font-size:19px; box-shadow:0 0 0 4px rgba(255,255,255,.4),0 0 16px var(--coral); }
+.map-stop .ms-label{ font-family:'Amiri',serif; font-weight:700; font-size:9.5px; color:#1b2b46;
+  background:rgba(255,255,255,.82); padding:1px 6px; border-radius:8px; white-space:nowrap; max-width:84px; overflow:hidden; text-overflow:ellipsis; }
+.map-token{ position:absolute; transform:translate(-50%,-118%); font-size:25px; z-index:5;
+  filter:drop-shadow(0 4px 5px rgba(0,0,0,.45)); transition:left .6s,top .6s; }
+.map-token.me{ font-size:29px; }
+.map-token.leader::after{ content:'👑'; position:absolute; top:-12px; left:50%; transform:translateX(-50%); font-size:14px; }
 .map-token .mt-name{ font-size:9px; background:var(--deep); color:#fff; padding:1px 5px; border-radius:6px;
-  position:absolute; top:-6px; right:50%; transform:translateX(50%); white-space:nowrap; }
+  position:absolute; top:-4px; left:50%; transform:translateX(-50%); white-space:nowrap; }
+.map-token.me .mt-name{ background:var(--coral); }
 .board-row{ display:flex; align-items:center; gap:12px; padding:11px 14px; margin-bottom:8px; border-radius:14px;
   background:linear-gradient(160deg,rgba(255,255,255,.85),rgba(247,239,226,.65));
   box-shadow:0 6px 14px -10px var(--shadow), inset 0 0 0 1px var(--paper-edge); }
@@ -2968,23 +2970,43 @@ function renderMap(){
   const w=W(); $('mapTitle').textContent='🗼 '+(LANG==='en'?(w.name_en||w.name):w.name); const _r=RACE(); $('mapSub').textContent=T('من ','From ')+locName(_r[0])+T(' لـ ',' to ')+(LANG==='en'?(w.finishLabel_en||w.finishLabel):w.finishLabel);
   renderMapLive();
   const cv=$('mapCanvas'); cv.innerHTML=''; const stops=RACE(), n=stops.length; const pos=[];
-  const rows=Math.ceil(n/3);
-  for(let i=0;i<n;i++){ const row=Math.floor(i/3); let col=i%3; if(row%2===1) col=2-col;
-    pos.push({x:14+col*36, y:12+row*(76/Math.max(1,rows-1))}); }
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.setAttribute('class','map-path'); svg.setAttribute('viewBox','0 0 100 100'); svg.setAttribute('preserveAspectRatio','none');
-  let d='M '+pos[0].x+' '+pos[0].y; for(let i=1;i<n;i++) d+=' L '+pos[i].x+' '+pos[i].y;
-  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('d',d); path.setAttribute('fill','none'); path.setAttribute('stroke','rgba(255,255,255,.7)');
-  path.setAttribute('stroke-width','2.4'); path.setAttribute('stroke-dasharray','1 3'); path.setAttribute('stroke-linecap','round');
-  svg.appendChild(path); cv.appendChild(svg);
+  // WINDING TRAIL: gentle vertical serpentine (sine wave) so the path snakes down the board
+  for(let i=0;i<n;i++){ const t=n>1?i/(n-1):0;
+    pos.push({ x: 50 + 33*Math.sin(i*0.95 + 0.6), y: 8 + t*84 }); }
+  // per-world trail + canvas theme
+  const themes={
+    mermaid:{ bg:'radial-gradient(80% 60% at 70% 15%,rgba(150,230,245,.4),transparent 60%),linear-gradient(180deg,#cfe7ec,#6da7bd 60%,#3b7d95)', stroke:'#1f7fa0', glow:'#7fe0f5', dash:'', width:3.4 },
+    cairo:{ bg:'radial-gradient(70% 50% at 30% 10%,rgba(255,79,216,.25),transparent 60%),linear-gradient(180deg,#241640,#3a1d5e 55%,#120b22)', stroke:'#ff4fd8', glow:'#00e5ff', dash:'', width:3 },
+    afreet:{ bg:'radial-gradient(75% 55% at 60% 12%,rgba(240,210,138,.4),transparent 60%),linear-gradient(180deg,#e7c98f,#caa15a 55%,#9c6f3a)', stroke:'#9c5a1e', glow:'#f3d79a', dash:'0.1 5', width:3.4 },
+    cats:{ bg:'radial-gradient(75% 55% at 65% 12%,rgba(224,195,238,.35),transparent 60%),linear-gradient(180deg,#3a2f4a,#574067 55%,#2c2238)', stroke:'#d7a7ec', glow:'#f0d9ff', dash:'7 5', width:3 }
+  };
+  const th=themes[W().id]||themes.mermaid; cv.style.background=th.bg;
+  // smooth Catmull-Rom spline through the stops
+  const smooth=(pts)=>{ if(pts.length<2) return pts.length?('M '+pts[0].x+' '+pts[0].y):''; let d='M '+pts[0].x+' '+pts[0].y;
+    for(let i=0;i<pts.length-1;i++){ const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+      const c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6,c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;
+      d+=' C '+c1x.toFixed(2)+' '+c1y.toFixed(2)+' '+c2x.toFixed(2)+' '+c2y.toFixed(2)+' '+p2.x.toFixed(2)+' '+p2.y.toFixed(2); } return d; };
+  const fullD=smooth(pos);
+  const leadStop=Math.min(n-1, Math.max(0, ...S.players.map(p=>p.stop||0)));
+  const liveD=smooth(pos.slice(0, leadStop+1));
+  // build the trail SVG (glow + faint full path + bright progress path)
+  cv.insertAdjacentHTML('beforeend',
+    '<svg class="map-path" viewBox="0 0 100 100" preserveAspectRatio="none">'+
+    '<defs><filter id="trailGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'+
+    '<path d="'+fullD+'" fill="none" stroke="'+th.stroke+'" stroke-opacity="0.28" stroke-width="'+(th.width+0.6)+'" stroke-linecap="round" '+(th.dash?('stroke-dasharray="'+th.dash+'"'):'')+'/>'+
+    '<path d="'+liveD+'" fill="none" stroke="'+th.glow+'" stroke-width="'+th.width+'" stroke-linecap="round" filter="url(#trailGlow)" '+(th.dash?('stroke-dasharray="'+th.dash+'"'):'')+'/>'+
+    '</svg>');
+  // milestone stops along the trail (LTR coords — aligned with the SVG)
   stops.forEach((st,i)=>{ const el=document.createElement('div');
-    el.className='map-stop'+(i<me().stop?' done':'')+(isFinishStop(st)?' finish':'');
-    el.style.right=pos[i].x+'%'; el.style.top=pos[i].y+'%';
-    el.innerHTML='<div class="ms-dot">'+(isFinishStop(st)?'🗼':st.art)+'</div><div class="ms-label">'+locName(st)+'</div>'; cv.appendChild(el); });
-  S.players.forEach((p,idx)=>{ const t=document.createElement('div'); t.className='map-token';
-    const sp=pos[Math.min(p.stop,n-1)]; t.style.right=(sp.x+(idx-(S.players.length-1)/2)*4)+'%'; t.style.top=sp.y+'%';
-    t.innerHTML=p.avatar.emoji+(p.isMe?'<div class="mt-name">'+T('إنت','you')+'</div>':''); cv.appendChild(t); });
+    el.className='map-stop'+(i<=leadStop?' done':'')+(isFinishStop(st)?' finish':'');
+    el.style.left=pos[i].x+'%'; el.style.top=pos[i].y+'%';
+    el.innerHTML='<div class="ms-dot">'+(isFinishStop(st)?'🏁':st.art)+'</div><div class="ms-label">'+locName(st)+'</div>'; cv.appendChild(el); });
+  // tokens sit ON the trail; stack players sharing a stop so each is visible
+  const byStop={}; S.players.forEach(p=>{ const s=Math.min(p.stop||0,n-1); (byStop[s]=byStop[s]||[]).push(p); });
+  Object.keys(byStop).forEach(s=>{ const group=byStop[s]; const sp=pos[s];
+    group.forEach((p,k)=>{ const t=document.createElement('div'); t.className='map-token'+(p.isMe?' me':'')+(p._first?' leader':'');
+      const off=(k-(group.length-1)/2); t.style.left=(sp.x+off*7)+'%'; t.style.top=sp.y+'%'; t.style.zIndex=5+k;
+      t.innerHTML=p.avatar.emoji+'<div class="mt-name">'+(p.isMe?T('إنت','you'):p.name)+'</div>'; cv.appendChild(t); }); });
   renderBoard('mapBoard');
   // live event feed (most recent first)
   const feed=$('mapFeed'); if(feed){ feed.innerHTML='';
