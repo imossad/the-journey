@@ -2250,7 +2250,7 @@ function renderActive(){
   $('stopFact').innerHTML=loc(st,'fact')||'';
   renderChoices('stopChoices', m, st, false);
   const adv=$('advanceBtn');
-  const chose = m.acted || (m.chosen && m.chosen[m.stop]);   // acted this turn (even if now at a new stop)
+  const chose = m.acted;   // acted this turn (resets each turn)
   if(isFinishStop(st) && !m.arrived){ adv.textContent=T('🏁 وصلت النهاية — خلّص! ▸','🏁 You reached the finale — finish! ▸'); adv.onclick=advance; }
   else if(m.arrived){ adv.textContent=T('خلّص دورك ▸','End your turn ▸'); adv.onclick=advance; }
   else if(!chose){ adv.textContent=T('اختار حركة من فوق الأول ▴','Pick a move above first ▴'); adv.onclick=()=>toast(T('👆 اختار حركة من المحطة الأول','👆 Pick a move at the stop first')); }
@@ -2389,10 +2389,9 @@ function choiceTag(ch){
 function renderChoices(cid, player, st, inModal){
   const box=$(cid); box.innerHTML=''; const m=me();
   const arrivalPreview = inModal && cid==='smChoices';                  // map-preview modal — read-only
-  const movedThisTurn  = m && m.acted && cid==='stopChoices';           // already made your one move this turn
-  const alreadyChosen  = m && m.chosen && m.chosen[m.stop] && cid==='stopChoices';
-  // In the command center: once you've moved, DON'T show dimmed buttons — show a clean "turn done" panel.
-  if((movedThisTurn || alreadyChosen) && cid==='stopChoices'){
+  const movedThisTurn  = m && m.acted && cid==='stopChoices';           // made your one move THIS turn (resets each turn)
+  // In the command center: once you've moved this turn, show a clean "turn done" panel.
+  if(movedThisTurn){
     const done=document.createElement('div'); done.className='turn-done';
     done.innerHTML='<div class="td-emoji">✅</div><div class="td-msg">'+
       T('خلّصت حركتك الدور ده!','You\'ve made your move this turn!')+'</div><div class="td-sub">'+
@@ -2463,7 +2462,6 @@ async function chooseStop(idx, inModal){
   if(!isMyTurn()){ toast(T('مش دورك دلوقتي','Not your turn right now')); return; }
   const m=me(); const raw=myPlayerRaw(); const st=stopOf(m);
   if(raw.acted){ toast(T('✓ خلّصت حركتك — دوس "خلّص دورك"','✓ You moved already — tap "End your turn"')); return; }
-  if(raw.chosen && raw.chosen[m.stop]){ toast(T('😅 خلصت اختيار المحطة دي','😅 You already chose at this stop')); return; }
   const ch=st.choices[idx];
   if(inModal) closeModal('storyModal');
   if(ch.kind==='trivia'){ openTrivia(ch, idx); return; }
@@ -2620,7 +2618,7 @@ async function advance(){
   const m=me(); const raw=myPlayerRaw();
   if(isFinishStop(stopOf(m)) && !m.arrived){ await arriveMe(); return; }
   // safety net: chose but stuck → +1
-  if(!m.arrived && raw.chosen && raw.chosen[m.stop] && pointsToNextStop(m)>0){ const patch={}; applyGain(patch,raw,1); deriveStopAndMission(patch,raw,'earn'); await patchMe(patch); }
+  if(!m.arrived && raw.acted && pointsToNextStop(m)>0){ const patch={}; applyGain(patch,raw,1); deriveStopAndMission(patch,raw,'earn'); await patchMe(patch); }
   await patchMe({ acted:false });   // clear my one-move-per-turn flag before handing off
   await passTurn();
 }
