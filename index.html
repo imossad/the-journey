@@ -70,6 +70,7 @@ body::before{ content:""; position:fixed; inset:0; pointer-events:none; opacity:
 .w-cairo{ background:linear-gradient(135deg,rgba(217,138,154,.5),rgba(74,59,99,.42)); }
 .w-afreet{ background:linear-gradient(135deg,rgba(240,196,108,.5),rgba(232,128,107,.4)); }
 .w-cats{ background:linear-gradient(135deg,rgba(150,170,140,.5),rgba(120,140,110,.42)); }
+.w-worldcup{ background:linear-gradient(135deg,rgba(46,140,70,.55),rgba(200,30,40,.35)); }
 .row-scroll{ display:flex; gap:10px; overflow-x:auto; padding:4px 2px 10px; }
 .row-scroll::-webkit-scrollbar{ height:0; }
 .pick{ flex:0 0 104px; min-height:124px; cursor:pointer; border-radius:16px; padding:12px;
@@ -548,9 +549,9 @@ textarea.offer-text{ width:100%; min-height:70px; border-radius:12px; border:1.5
   <section class="screen" id="screen-win">
     <div style="height:36px;"></div>
     <div class="win-emblem" id="winEmblem">🏆</div>
-    <div class="win-title">وصل المنارة!</div>
+    <div class="win-title" id="winTitle">🏁 السباق خلص!</div>
     <div class="win-name" id="winName">—</div>
-    <div class="card-soft" style="margin-top:16px;"><div id="winBoard"></div></div>
+    <div class="card-soft" style="margin-top:16px;"><div id="winBoard"></div><div id="winBreak" style="margin-top:10px; font-size:12.5px; line-height:1.9; color:var(--ink-soft,#6b6051); text-align:right;"></div></div>
     <div style="height:14px;"></div>
     <button class="btn" id="rematchBtn" onclick="rematch()">العبوا تاني ▸</button>
     <div style="height:10px;"></div>
@@ -618,17 +619,7 @@ textarea.offer-text{ width:100%; min-height:70px; border-radius:12px; border:1.5
   <div class="modal">
     <button class="modal-close" onclick="closeModal('howtoModal')">✕</button>
     <div class="modal-title" id="howtoTitle">إزاي نلعب</div>
-    <div style="font-size:14.5px; line-height:1.85; margin-top:8px;" id="howtoBody">
-      <p>📱 <b>كل واحد على موبايله.</b> واحد يعمل غرفة ويطلعله كود + QR، والباقي يدخلوا بالكود أو يمسحوا الـ QR. أول ما تبقوا ٢ أو أكتر، أي حد يقدر يبدأ.</p>
-      <p>🌍 <b>عالم واحد للجميع</b> — نفس الخريطة، نفس السباق، وكل واحد بشخصية.</p>
-      <p>🏁 <b>الهدف توصل منارة فاروس.</b> نقطك هي مكانك في السباق — كل ما تكسب نقط أكتر، توصل أبعد أوتوماتيك. مفيش صرف ولا تعقيد.</p>
-      <p>🔄 <b>بالأدوار.</b> فوق خالص شريط بيوريك دور مين. لما ييجي دورك، اختار حركتك من المحطة، وبعدين دوس "خلّص دورك".</p>
-      <p>💡 <b>كل محطة مكان حقيقي في مصر</b> + معلومة نادرة + ٣ اختيارات: 🧠 سؤال، 🍷 تحدّي، 🤝 اجتماعي، أو 🎲 مخاطرة.</p>
-      <p>🎯 <b>مهمتك سرّية.</b> خلّصها وخد <b>كارت قوة</b> يقلب اللعبة (إعصار، تجميد، سرقة...).</p>
-      <p>🎴 <b>كروت.</b> ✨ معجزة تساعدك، ⚔️ أكشن تعطّل غيرك (إنت اللي تختار تلعبها على مين)، ⭐ كروت القوة أقوى حاجة.</p>
-      <p>📨 <b>لعبة اجتماعية!</b> وانت مش دورك، ابعت للّي دوره عرض (كارت/نقط/كلام) يأثّر على قراره. هو يقبل أو يرفض.</p>
-      <p>🏆 <b>أول واحد يوصل المنارة ياخد بونص كبير</b> — بس اللعب يكمّل لحد ما الكل يوصل، واللي معاه أعلى نقط في الآخر يكسب. يعني حتى اللي وصل ممكن حد يعدّيه!</p>
-    </div>
+    <div style="font-size:14.5px; line-height:1.85; margin-top:8px;" id="howtoBody"></div>
     <div style="height:10px;"></div>
     <button class="btn" id="howtoClose" onclick="closeModal('howtoModal')">تمام، يلا</button>
   </div>
@@ -803,6 +794,7 @@ function randCode(){ const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; for(l
 
 const NET = {
   async createRoom(world){
+    if(roomRef){ try{ roomRef.off(); }catch(e){} }   // detach the previous game's listener
     roomCode=randCode(); isHost=true;
     roomRef=DB.ref('rooms/'+roomCode);
     await roomRef.set({ code:roomCode, host:myUid, started:false, world, turnUid:null, round:1,
@@ -811,6 +803,7 @@ const NET = {
   },
   async joinRoom(code){
     code=(code||'').toUpperCase().trim();
+    if(roomRef){ try{ roomRef.off(); }catch(e){} }   // detach the previous game's listener
     roomRef=DB.ref('rooms/'+code);
     const snap=await roomRef.get();
     if(!snap.exists()) throw new Error('الغرفة مش موجودة');
@@ -1786,6 +1779,207 @@ function drawRace(pool, n){
 }
 function toAr(n){ return Number(n).toLocaleString('ar-EG'); }
 
+/* رحلة الفراعنة — كاس العالم ٢٠٢٦ — 20 محطة — bilingual inline
+   Real facts from Egypt's actual 2026 campaign (Group G runners-up, first-ever WC win & knockout). */
+const WC_STOPS = [
+  { id:'ahwa', art:'☕', name:'قهوة الحتة — مقر التشجيع الرسمي', name_en:'The Neighborhood Ahwa — Official Fan HQ', eyebrow:'البداية من هنا',
+    story:'الرحلة بتبدأ من قهوة الحتة! الشاشة اتمسحت بمناديل، الكراسي اتحجزت من العصر، وواحد صوته راح من ماتش بلجيكا لسه بيشاور بإيده. من هنا للنهائي — يلا يا فراعنة!',
+    story_en:"The journey starts at the neighborhood ahwa! The screen's been wiped clean, chairs reserved since noon, and one fan who lost their voice at the Belgium match is still gesturing. From here to the final — let's go Pharaohs!",
+    fact:'💡 مصر هي <b>أول منتخب أفريقي وعربي في التاريخ</b> يلعب كاس العالم — من سنة ١٩٣٤!',
+    fact_en:'💡 Egypt was the <b>first African and Arab team in history</b> to play a World Cup — back in 1934!',
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: أول منتخب أفريقي في كاس العالم؟', label_en:'🧠 Quiz: first African team at a World Cup?', q:'مين أول منتخب أفريقي وعربي لعب كاس العالم؟', q_en:'Who was the first African and Arab team to play a World Cup?', opts:['مصر ١٩٣٤','المغرب ١٩٧٠','تونس ١٩٧٨'], opts_en:['Egypt 1934','Morocco 1970','Tunisia 1978'], answer:0, pts:6, penalty:-2, fact:'مصر ١٩٣٤ — قبل الكل!', fact_en:'Egypt 1934 — before everyone!'},
+      {kind:'dare', label:'🍷 تحدّي: علّق على جول زي المعلقين', label_en:'🍷 Dare: call a goal like a commentator', dare:'قلّد معلق كورة مجنون بيوصف جول لمصر لمدة ١٥ ثانية — بالحماس كله. +٤.', dare_en:'Do a crazy commentator goal call for an Egypt goal, 15 seconds, full passion. +4.', pts:4, penalty:-2},
+      {kind:'pts', label:'⭐ احجز كرسيك بدري (+كارت)', label_en:'⭐ Reserve your chair early (+card)', pts:3, card:true},
+    ]},
+  { id:'airport', art:'🛫', name:'مطار القاهرة — صالة ٣', name_en:'Cairo Airport — Terminal 3', eyebrow:'رحلة العمر',
+    story:'واقف في المطار بشنطة مليانة قمصان وعلم أكبر منك. الموظف بيبص للميزان وبيهز راسه — العلم وزنه لوحده ٣ كيلو، والطبلة مش عايزة تدخل الشنطة أصلاً.',
+    story_en:"You're at the airport with a bag full of jerseys and a flag bigger than you. The clerk eyes the scale and shakes his head — the flag alone is 3 kilos, and the drum refuses to fit in the bag.",
+    fact:'💡 كاس العالم ٢٠٢٦ هو أول نسخة بـ<b>٤٨ منتخب</b> — أكبر كاس عالم في التاريخ!',
+    fact_en:'💡 World Cup 2026 is the first edition with <b>48 teams</b> — the biggest World Cup in history!',
+    choices:[
+      {kind:'risk', label:'🎲 مخاطرة: عدّي الشنطة من غير وزن زيادة', label_en:'🎲 Gamble: get the bag through without excess fees', gamble:[{pts:6,msg:'عدّت! الموظف مشجّع مصري! +٦',msg_en:'It passed! The clerk is an Egypt fan! +6'},{pts:-2,msg:'وزن زيادة — سبت الطبلة 💔 -٢',msg_en:'Excess weight — the drum stays behind 💔 -2'}]},
+      {kind:'trivia', label:'🧠 سؤال: كاس العالم ٢٠٢٦ فيه كام منتخب؟', label_en:'🧠 Quiz: how many teams in WC 2026?', q:'نسخة ٢٠٢٦ فيها كام منتخب لأول مرة؟', q_en:'How many teams does the 2026 edition have, for the first time?', opts:['٣٢','٤٨','٢٤'], opts_en:['32','48','24'], answer:1, pts:5, penalty:-2, fact:'٤٨ منتخب — أول مرة في التاريخ.', fact_en:'48 teams — a historic first.'},
+      {kind:'social', label:'🤝 اجتماعي: ادّي حد مكانك في الطابور', label_en:'🤝 Social: give someone your spot in line', social:'give', amt:3},
+    ]},
+  { id:'border', art:'🛂', name:'جوازات أمريكا', name_en:'US Border Control', eyebrow:'أسئلة كتير',
+    story:'ضابط الجوازات بيسألك: "جاي ليه؟" قولتله "كاس العالم" فسألك "مشجع مين؟" — أول ما قولت "مصر" لقيت اللي وراك في الطابور بيهتف معاك. اتنين أمن جم يهدّوا الطابور وقعدوا يتصوروا مع العلم.',
+    story_en:"The border officer asks: \"Purpose of visit?\" You say \"World Cup.\" He asks \"Supporting who?\" — the second you say \"Egypt,\" the person behind you starts chanting along. Two security guards came to calm the line and ended up taking photos with the flag.",
+    fact:'💡 ٢٠٢٦ هي أول بطولة في التاريخ <b>بثلاث دول مستضيفة</b>: أمريكا وكندا والمكسيك.',
+    fact_en:'💡 2026 is the first tournament in history with <b>three host countries</b>: USA, Canada and Mexico.',
+    choices:[
+      {kind:'truth', label:'🫢 اعتراف: أغرب حاجة عملتها عشان ماتش', label_en:'🫢 Confess: craziest thing you did for a match', dare:'قول للقعدة أغرب حاجة عملتها في حياتك عشان تتفرج على ماتش. +٥.', dare_en:'Tell the group the craziest thing you ever did to watch a match. +5.', pts:5, penalty:-2},
+      {kind:'trivia', label:'🧠 سؤال: مين بيستضيف ٢٠٢٦؟', label_en:'🧠 Quiz: who hosts 2026?', q:'كاس العالم ٢٠٢٦ بتستضيفه كام دولة؟', q_en:'How many countries host World Cup 2026?', opts:['دولة واحدة','دولتين','تلات دول'], opts_en:['One','Two','Three'], answer:2, pts:5, penalty:-2, fact:'أمريكا وكندا والمكسيك — أول مرة تلات دول.', fact_en:'USA, Canada & Mexico — the first triple-host.'},
+      {kind:'risk', label:'🎲 مخاطرة: جاوب الضابط بنكتة', label_en:'🎲 Gamble: answer the officer with a joke', gamble:[{pts:5,msg:'ضحك وختملك بسرعة! +٥',msg_en:'He laughed and stamped you through! +5'},{pts:-2,msg:'وشّه جامد… تفتيش إضافي. -٢',msg_en:'Stone face… extra screening. -2'}]},
+    ]},
+  { id:'seattle', art:'🌧️', name:'ستاد Lumen Field — سياتل', name_en:'Lumen Field — Seattle', eyebrow:'ماتش بلجيكا',
+    story:'هنا اتلعب أول ماتش: مصر ١–١ بلجيكا! والأجمل؟ الماتش كان يوم عيد ميلاد صلاح — عيّد وسط ٦٩ ألف متفرج. دي بوبين وعندهم كاس؟ إحنا عندنا محمد.',
+    story_en:"The opener was played here: Egypt 1–1 Belgium! Even better? It was Salah's birthday — he celebrated in front of 69,000 fans. They have De Bruyne? We have Mohamed.",
+    fact:'💡 مصر تعادلت مع بلجيكا ١–١ في افتتاح المجموعة يوم <b>عيد ميلاد صلاح الـ٣٤</b> — ١٥ يونيو ٢٠٢٦!',
+    fact_en:"💡 Egypt drew 1–1 with Belgium in the group opener on <b>Salah's 34th birthday</b> — June 15, 2026!",
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: ماتش بلجيكا كان يوم إيه لصلاح؟', label_en:'🧠 Quiz: what was special about the Belgium match for Salah?', q:'ماتش بلجيكا (١–١) صادف إيه عند صلاح؟', q_en:'The Belgium match (1–1) fell on what day for Salah?', opts:['عيد ميلاده الـ٣٤','ماتشه رقم ١٠٠','اعتزاله'], opts_en:['His 34th birthday','His 100th cap','His retirement'], answer:0, pts:6, penalty:-2, fact:'١٥ يونيو — عيد ميلاده الـ٣٤!', fact_en:'June 15 — his 34th birthday!'},
+      {kind:'dare', label:'🍷 تحدّي: اهتف هتاف كامل بصوت عالي', label_en:'🍷 Dare: do a full loud chant', dare:'قوم اهتف هتاف تشجيع كامل لمصر بصوت عالي والقعدة ترد وراك. +٤.', dare_en:'Stand and lead a full loud Egypt chant; the group echoes you. +4.', pts:4, penalty:-2},
+      {kind:'social', label:'⚔️ تحدّي لاعب: مين يعرف هتافات أكتر', label_en:'⚔️ Duel: who knows more chants', social:'duel', amt:3},
+    ]},
+  { id:'vancouver', art:'🏟️', name:'ستاد BC Place — فانكوفر', name_en:'BC Place — Vancouver', eyebrow:'أول فوز في التاريخ!',
+    story:'المحطة دي تاريخية بجد: مصر ٣–١ نيوزيلندا — أول فوز لمصر في كاس العالم في التاريخ كله! من ١٩٣٤ واحنا مستنيين اللحظة دي. الدموع في القهاوي كانت أكتر من الشاي.',
+    story_en:"This stop is genuinely historic: Egypt 3–1 New Zealand — Egypt's FIRST World Cup win in all of history! We'd been waiting since 1934. The ahwas had more tears than tea.",
+    fact:'💡 فوز مصر ٣–١ على نيوزيلندا هو <b>أول فوز لمصر في كاس العالم على الإطلاق</b> — وكسر لنيوزيلندا أول هزيمة ليها في كاس العالم من ٤٤ سنة!',
+    fact_en:"💡 Egypt's 3–1 over New Zealand was <b>Egypt's first-ever World Cup win</b> — and New Zealand's first World Cup defeat in 44 years!",
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: أول فوز لمصر في كاس العالم على مين؟', label_en:"🧠 Quiz: Egypt's first-ever WC win came against?", q:'أول فوز لمصر في تاريخ كاس العالم كان على مين؟', q_en:"Egypt's first World Cup win in history came against whom?", opts:['نيوزيلندا ٢٠٢٦','أوروجواي ٢٠١٨','هولندا ١٩٩٠'], opts_en:['New Zealand 2026','Uruguay 2018','Netherlands 1990'], answer:0, pts:6, penalty:-2, fact:'٣–١ على نيوزيلندا في فانكوفر!', fact_en:'3–1 over New Zealand in Vancouver!'},
+      {kind:'dare', label:'🍷 تحدّي: اعمل احتفالية الجول بتاعتك', label_en:'🍷 Dare: perform your goal celebration', dare:'قوم اعمل احتفالية الجول الشخصية بتاعتك كاملة قدام القعدة — سجدة، رقصة، أي حاجة. +٤.', dare_en:'Stand and perform your personal goal celebration in full — slide, dance, anything. +4.', pts:4, penalty:-2},
+      {kind:'pts', label:'⭐ سجّل اللحظة التاريخية', label_en:'⭐ Record the historic moment', pts:3},
+    ]},
+  { id:'fanzone', art:'🎪', name:'الفان زون', name_en:'The Fan Zone', eyebrow:'كل الجنسيات',
+    story:'الفان زون مليان: مكسيكيين بيغنوا، برازيليين بيرقصوا، ومصريين مسيطرين على السماعة وبيشرحوا لواحد ياباني يعني إيه "يا أبيض يا اسمرارك". الراجل فاهم ولا مش فاهم — بيهتف معاهم.',
+    story_en:"The fan zone is packed: Mexicans singing, Brazilians dancing, and Egyptians who took over the speaker, teaching a Japanese fan our chants. Does he understand? No idea — he's chanting anyway.",
+    fact:'💡 عبد الرحمن فوزي سجّل <b>جولين لمصر سنة ١٩٣٤</b> قدام المجر — وفضل الأفريقي الوحيد اللي سجّل في كاس العالم لعقود!',
+    fact_en:'💡 Abdulrahman Fawzi scored <b>a brace for Egypt in 1934</b> vs Hungary — and stayed the only African World Cup scorer for decades!',
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: مين أول هدّاف مصري في كاس العالم؟', label_en:"🧠 Quiz: Egypt's first World Cup scorer?", q:'مين سجّل أول أهداف لمصر في كاس العالم (١٩٣٤)؟', q_en:"Who scored Egypt's first World Cup goals (1934)?", opts:['عبد الرحمن فوزي','حسام حسن','صالح سليم'], opts_en:['Abdulrahman Fawzi','Hossam Hassan','Saleh Selim'], answer:0, pts:6, penalty:-2, fact:'فوزي — جولين قدام المجر في نابولي!', fact_en:'Fawzi — a brace vs Hungary in Naples!'},
+      {kind:'dare', label:'🍷 تحدّي: اهتف بالهمس', label_en:'🍷 Dare: chant in a whisper', dare:'اهتف هتاف حماسي كامل بس بالهمس — بنفس الانفعالات والحركات. القعدة تحكم. +٤.', dare_en:'Do a passionate full chant but in a whisper — same emotions and gestures. The table judges. +4.', pts:4, penalty:-2},
+      {kind:'social', label:'🤝 اجتماعي: علّم الهتاف لحد — ادّيه نقط', label_en:'🤝 Social: teach someone the chant — give them points', social:'give', amt:3},
+    ]},
+  { id:'tickets', art:'🎟️', name:'طابور التذاكر', name_en:'The Ticket Queue', eyebrow:'أغلى ورقة',
+    story:'واقف من الفجر في طابور التذاكر. اللي قدامك بيقول إن معاه "واسطة في الفيفا"، واللي وراك بيبيع مكانه في الطابور بالتقسيط. وانت ماسك الموبايل بتحدّث الصفحة كل تلات ثواني.',
+    story_en:"You've queued since dawn. The guy ahead claims he has \"a FIFA connection,\" the one behind is selling his queue spot in installments. You're refreshing the page every three seconds.",
+    fact:'💡 نهائي كاس العالم ٢٠٢٦ هيتلعب <b>١٩ يوليو في ستاد MetLife</b> في نيوجيرسي.',
+    fact_en:'💡 The 2026 World Cup final will be played <b>July 19 at MetLife Stadium</b> in New Jersey.',
+    choices:[
+      {kind:'risk', label:'🎲 مخاطرة: تذكرة من السوق السودا', label_en:'🎲 Gamble: a ticket from a scalper', gamble:[{pts:7,msg:'أصلية! وفي الصف التالت! +٧',msg_en:'Genuine! Third row! +7'},{pts:-3,msg:'مزوّرة… والراجل اختفى. -٣',msg_en:'Fake… and the guy vanished. -3'}]},
+      {kind:'truth', label:'🫢 اعتراف: أكتر مبلغ صرفته على الكورة', label_en:'🫢 Confess: the most you ever spent on football', dare:'اعترف للقعدة بأكتر مبلغ صرفته في حياتك على حاجة ليها علاقة بالكورة. +٥.', dare_en:'Confess the most money you ever spent on anything football-related. +5.', pts:5, penalty:-2},
+      {kind:'social', label:'🤝 اجتماعي: خُد مكان حد في الطابور — لخبطه', label_en:'🤝 Social: cut in front of someone — sabotage', social:'sabotage', amt:3, pts:1},
+    ]},
+  { id:'sofi', art:'🏛️', name:'ستاد SoFi — لوس أنجلوس', name_en:'SoFi Stadium — Los Angeles', eyebrow:'ستاد الأساطير',
+    story:'الستاد ده تحفة — شاشة دايرية معلقة في السقف أكبر من الحارة بتاعتكم كلها. بس المصريين مش مبسوطين من الشاشة، مبسوطين إن في مكان يشحنوا فيه الموبايل يتفرجوا على إعادة الفار.',
+    story_en:"This stadium is a marvel — a circular screen hanging from the roof bigger than your whole neighborhood. But the Egyptians aren't excited about the screen; they're excited there's a place to charge phones and rewatch VAR replays.",
+    fact:'💡 عصام الحضري هو <b>أكبر لاعب لعب كاس العالم في التاريخ</b> — ٤٥ سنة و٥ شهور في روسيا ٢٠١٨، وصدّ بنلتي كمان!',
+    fact_en:'💡 Essam El-Hadary is the <b>oldest player ever in a World Cup</b> — 45 years and 5 months at Russia 2018, and he saved a penalty too!',
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: أكبر لاعب في تاريخ كاس العالم؟', label_en:'🧠 Quiz: oldest player in World Cup history?', q:'مين أكبر لاعب شارك في كاس العالم في التاريخ؟', q_en:'Who is the oldest player ever to play at a World Cup?', opts:['عصام الحضري','بوفون','مالديني'], opts_en:['Essam El-Hadary','Buffon','Maldini'], answer:0, pts:6, penalty:-2, fact:'الحضري — ٤٥ سنة و٥ شهور، وصدّ بنلتي!', fact_en:'El-Hadary — 45 years 5 months, and saved a penalty!'},
+      {kind:'dare', label:'🍷 تحدّي: مثّل تصدية الحضري', label_en:"🍷 Dare: act out El-Hadary's save", dare:'مثّل تصدية الحضري للبنلتي بالحركة البطيئة — بالطيران والوش الجامد. +٤.', dare_en:"Reenact El-Hadary's penalty save in slow motion — the dive and the stone face. +4.", pts:4, penalty:-2},
+      {kind:'risk', label:'🎲 مخاطرة: اطلع في الشاشة الدايرية', label_en:'🎲 Gamble: get on the circular screen', gamble:[{pts:6,msg:'الكاميرا لقطتك بالعلم! +٦',msg_en:'The camera caught you with the flag! +6'},{pts:-2,msg:'ظهرت وانت بتاكل… -٢',msg_en:'It caught you mid-bite… -2'}]},
+    ]},
+  { id:'azteca', art:'🌋', name:'ستاد أزتيكا — مكسيكو سيتي', name_en:'Estadio Azteca — Mexico City', eyebrow:'معبد الكورة',
+    story:'الأزتيكا! الستاد اللي شاف مارادونا وبيليه بيرفعوا الكاس. المكسيكيين حواليك بيغنوا من ساعتين من غير ما يقفوا، وانت بتحسب في سرك الفرق بينهم وبين دكة التالتة الصبح في القاهرة.',
+    story_en:"The Azteca! The stadium that watched Maradona and Pelé lift the cup. The Mexicans around you have been singing for two hours straight, and you're quietly comparing them to the 3am bleachers back in Cairo.",
+    fact:'💡 أزتيكا هو الستاد الوحيد في التاريخ اللي استضاف <b>نهائيين لكاس العالم</b> (١٩٧٠ و١٩٨٦) — وافتتح نسخة ٢٠٢٦.',
+    fact_en:'💡 The Azteca is the only stadium in history to host <b>two World Cup finals</b> (1970 & 1986) — and it opened the 2026 edition.',
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: أزتيكا استضاف كام نهائي؟', label_en:'🧠 Quiz: how many finals has the Azteca hosted?', q:'ستاد أزتيكا استضاف كام نهائي كاس عالم؟', q_en:'How many World Cup finals has the Azteca hosted?', opts:['واحد','اتنين','تلاتة'], opts_en:['One','Two','Three'], answer:1, pts:5, penalty:-2, fact:'نهائيين: ١٩٧٠ و١٩٨٦ — الوحيد في التاريخ.', fact_en:'Two: 1970 & 1986 — the only one ever.'},
+      {kind:'dare', label:'🍷 تحدّي: غنّي مع المكسيكيين', label_en:'🍷 Dare: sing with the Mexicans', dare:'اخترع أغنية تشجيع "مكسيكية" من عندك وغنّيها ١٠ ثواني بثقة كاملة. +٤.', dare_en:'Invent a "Mexican" chant on the spot and sing it for 10 seconds with total confidence. +4.', pts:4, penalty:-2},
+      {kind:'social', label:'🤝 اجتماعي: بادل قميص مع مشجع — ادّي نقط', label_en:'🤝 Social: swap jerseys with a fan — give points', social:'give', amt:3},
+    ]},
+  { id:'dallas', art:'🤠', name:'ستاد AT&T — دالاس', name_en:'AT&T Stadium — Dallas', eyebrow:'دور الـ٣٢: أستراليا!',
+    story:'وصلنا دالاس — هنا مصر بتلعب أستراليا في دور الـ٣٢! أول ماتش خروج مغلوب في تاريخنا. الكل واخد أجازة "مرضية"، والجروبات بتغلي، وحد في القعدة بيقول "أنا حاسس إننا هنكسب" وكلنا مصدقينه لأننا عايزين نصدق.',
+    story_en:"We've reached Dallas — Egypt plays Australia here in the Round of 32! Our first knockout match ever. Everyone took a \"sick day,\" the group chats are boiling, and someone says \"I have a feeling we'll win\" and we all believe them because we want to.",
+    fact:'💡 مصر وصلت <b>الأدوار الإقصائية لأول مرة في تاريخها</b> — وبتقابل أستراليا في ستاد AT&T في دالاس!',
+    fact_en:'💡 Egypt reached the <b>knockout stage for the first time in history</b> — facing Australia at AT&T Stadium in Dallas!',
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: مصر بتلعب مين في دور الـ٣٢؟', label_en:'🧠 Quiz: who does Egypt play in the Round of 32?', q:'مصر بتقابل مين في دور الـ٣٢ — أول أدوار إقصائية في تاريخها؟', q_en:'Who does Egypt face in the Round of 32 — their first-ever knockouts?', opts:['أستراليا','ألمانيا','البرازيل'], opts_en:['Australia','Germany','Brazil'], answer:0, pts:6, penalty:-2, fact:'أستراليا — في دالاس!', fact_en:'Australia — in Dallas!'},
+      {kind:'dare', label:'🍷 تحدّي: خطبة حماسية قبل الماتش', label_en:'🍷 Dare: a pre-match hype speech', dare:'اعمل خطبة حماسية للمنتخب قبل ماتش أستراليا — ٢٠ ثانية كأنك المدير الفني. +٥.', dare_en:'Give a 20-second hype speech to the team before the Australia match — like you are the head coach. +5.', pts:5, penalty:-2},
+      {kind:'pts', label:'⭐ اكتب لافتة تشجيع (+كارت)', label_en:'⭐ Make a support banner (+card)', pts:3, card:true},
+    ]},
+  { id:'groupchat', art:'📱', name:'جروب العيلة وقت الماتش', name_en:'The Family Group Chat, Mid-Match', eyebrow:'٩٩+ رسالة',
+    story:'الموبايل بيولّع: عمك بيبعت فيديو من ٢٠١٠ فاكره لايف، وواحدة قريبتك بتسأل "مين اللي لابس أحمر؟" في الدقيقة ٨٠، وحد لسه داخل يقول "إيه النتيجة؟" وهو الماتش على كل قناة في الكوكب.',
+    story_en:"Your phone is on fire: your uncle sends a 2010 video thinking it's live, a cousin asks \"which team is in red?\" in the 80th minute, and someone just joined asking \"what's the score?\" when the match is on every channel on the planet.",
+    fact:'💡 صلاح سجّل <b>٩ أهداف في تصفيات ٢٠٢٦</b> — رقم قياسي في تاريخ تصفيات أفريقيا، منهم ٤ في ماتش واحد قدام جيبوتي!',
+    fact_en:'💡 Salah scored <b>9 goals in the 2026 qualifiers</b> — an all-time CAF qualifying record, including 4 in one match vs Djibouti!',
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: صلاح جاب كام جول في التصفيات؟', label_en:'🧠 Quiz: how many qualifying goals did Salah score?', q:'صلاح سجّل كام هدف في تصفيات كاس العالم ٢٠٢٦؟', q_en:'How many goals did Salah score in the 2026 qualifiers?', opts:['٥','٩','١٢'], opts_en:['5','9','12'], answer:1, pts:6, penalty:-2, fact:'٩ أهداف — رقم قياسي أفريقي، و٤ منهم في ماتش واحد!', fact_en:'9 — a CAF record, 4 of them in one match!'},
+      {kind:'truth', label:'🫢 اعتراف: آخر مرة غلطت في نقاش كورة', label_en:'🫢 Confess: last time you were wrong in a football argument', dare:'احكي آخر مرة كنت متأكد من معلومة كورة وطلعت غلط — بالتفاصيل. +٥.', dare_en:'Tell the last time you were 100% sure about a football fact and turned out wrong — details. +5.', pts:5, penalty:-2},
+      {kind:'social', label:'🤝 اجتماعي: ابعت فيديو قديم في الجروب — لخبط لاعب', label_en:'🤝 Social: send an old video to the group — sabotage a player', social:'sabotage', amt:3, pts:1},
+    ]},
+  { id:'jerseys', art:'👕', name:'محل القمصان', name_en:'The Jersey Shop', eyebrow:'أصلي ولا "أصلي أوي"',
+    story:'البياع حالف إن القميص أصلي و"جاي من نفس مصنع الفيفا". السعر ربع التمن الرسمي، والخامة بتلمع غريب، وحرف الـS في Salah شكله M. بس الحب مش محتاج فواتير.',
+    story_en:"The seller swears the jersey is original, \"from FIFA's own factory.\" It's a quarter of the official price, the fabric shines suspiciously, and the S in Salah looks like an M. But love doesn't need receipts.",
+    fact:'💡 عمر مرموش لعب موسم خرافي مع <b>مانشستر سيتي</b> — وهو ضلع الهجوم التاني مع صلاح في تشكيلة الفراعنة.',
+    fact_en:"💡 Omar Marmoush had a breakout season with <b>Manchester City</b> — Egypt's second attacking spearhead alongside Salah.",
+    choices:[
+      {kind:'risk', label:'🎲 مخاطرة: اشتري القميص "الأصلي"', label_en:'🎲 Gamble: buy the "original" jersey', gamble:[{pts:6,msg:'طلع أصلي فعلاً بربع التمن! +٦',msg_en:'It was actually genuine at a quarter price! +6'},{pts:-2,msg:'غسلة واحدة وبقى مقاس طفل. -٢',msg_en:'One wash and it fits a toddler. -2'}]},
+      {kind:'trivia', label:'🧠 سؤال: مرموش بيلعب لمين؟', label_en:'🧠 Quiz: which club does Marmoush play for?', q:'عمر مرموش بيلعب لأي نادي؟', q_en:'Which club does Omar Marmoush play for?', opts:['مانشستر سيتي','ليفربول','بايرن'], opts_en:['Manchester City','Liverpool','Bayern'], answer:0, pts:5, penalty:-2, fact:'مانشستر سيتي — موسم اختراق!', fact_en:'Manchester City — breakout season!'},
+      {kind:'social', label:'🤝 اجتماعي: اشتري قميص لصاحبك — ادّي نقط', label_en:'🤝 Social: buy a friend a jersey — give points', social:'give', amt:3},
+    ]},
+  { id:'var', art:'📺', name:'غرفة الفار', name_en:'The VAR Room', eyebrow:'الخطوط بتترسم',
+    story:'اللحظة اللي وقف فيها قلب مصر كلها: إيران سجلت في الدقيقة ٩٣… والفار شال الجول بالتسلل! دقيقتين رسم خطوط حسّيناهم سنتين. اللي كان بيدعي، واللي مغمض، واللي بيقول "أنا عارف إنه تسلل" وهو أصلاً مشافش الإعادة.',
+    story_en:"The moment all of Egypt's heart stopped: Iran scored in the 93rd… and VAR ruled it offside! Two minutes of line-drawing that felt like two years. Some prayed, some covered their eyes, and someone said \"I knew it was offside\" without seeing the replay.",
+    fact:'💡 الفار ألغى هدف إيران في الوقت القاتل بداعي التسلل — <b>ومصر عدّت لدور الـ٣٢ بفارق الأهداف</b>!',
+    fact_en:"💡 VAR disallowed Iran's stoppage-time goal for offside — <b>and Egypt advanced to the Round of 32 on goal difference</b>!",
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: الفار أنقذنا قدام مين؟', label_en:'🧠 Quiz: VAR saved us against whom?', q:'الفار ألغى جول قاتل قدام مصر في ماتش مين؟', q_en:"VAR disallowed a last-minute goal against Egypt in which match?", opts:['إيران','بلجيكا','نيوزيلندا'], opts_en:['Iran','Belgium','New Zealand'], answer:0, pts:6, penalty:-2, fact:'إيران — تسلل في الدقيقة ٩٣، وعدّينا بفارق الأهداف!', fact_en:'Iran — 93rd-minute offside; we advanced on goal difference!'},
+      {kind:'truth', label:'🫢 اعتراف: مرة حكمت غلط وعندت', label_en:'🫢 Confess: a time you judged wrong and doubled down', dare:'اعترف بمرة كنت متأكد إنك صح في حاجة (مش شرط كورة) وعندت، وطلعت غلطان. +٥.', dare_en:'Confess a time you were sure you were right (not necessarily football), doubled down, and were wrong. +5.', pts:5, penalty:-2},
+      {kind:'risk', label:'🎲 مخاطرة: قرار الفار معاك ولا عليك؟', label_en:'🎲 Gamble: does VAR rule for or against you?', gamble:[{pts:6,msg:'الخط معاك! جول صحيح! +٦',msg_en:'The line favors you! Goal stands! +6'},{pts:-2,msg:'كتف متسلل بمليمتر. -٢',msg_en:'Your shoulder was offside by a millimeter. -2'}]},
+    ]},
+  { id:'tabla', art:'🥁', name:'ركنة الطبل والمزمار', name_en:'The Drum & Mizmar Corner', eyebrow:'الإيقاع الرسمي',
+    story:'ركنة المدرجات المصرية: طبلة ومزمار ودُف مستعار من فرح. الإيقاع بيبدأ واحد واحد، وفي ثواني الدنيا كلها بترقص — حتى المضيف الكندي اللي جه يقول "بهدوء لو سمحتوا" قعد يسقّف.',
+    story_en:"The Egyptian stands corner: a drum, a mizmar, and a tambourine borrowed from a wedding. The rhythm starts slow, and within seconds everyone's dancing — even the Canadian steward who came to say \"quiet please\" ended up clapping along.",
+    fact:'💡 مصر هي الأكتر تتويجاً بـ<b>كاس أمم أفريقيا — ٧ مرات</b> — رقم قياسي لحد النهارده!',
+    fact_en:'💡 Egypt has won the <b>Africa Cup of Nations a record 7 times</b> — still the all-time record!',
+    choices:[
+      {kind:'dare', label:'🍷 تحدّي: دقّ إيقاع والقعدة تكمّله', label_en:'🍷 Dare: drum a rhythm, the table completes it', dare:'دقّ إيقاع تشجيع على الترابيزة والقعدة لازم تكمّله وراك. لو كمّلوه — نجحت. +٤.', dare_en:'Drum a chant rhythm on the table; the group must complete it. If they do — you pass. +4.', pts:4, penalty:-2},
+      {kind:'trivia', label:'🧠 سؤال: مصر كسبت أمم أفريقيا كام مرة؟', label_en:'🧠 Quiz: how many AFCON titles does Egypt have?', q:'مصر اتوّجت بكاس أمم أفريقيا كام مرة؟', q_en:'How many times has Egypt won the Africa Cup of Nations?', opts:['٥','٧','٩'], opts_en:['5','7','9'], answer:1, pts:5, penalty:-2, fact:'٧ مرات — الرقم القياسي.', fact_en:'7 — the all-time record.'},
+      {kind:'social', label:'⚔️ تحدّي لاعب: مبارزة إيقاع', label_en:'⚔️ Duel: rhythm battle', social:'duel', amt:3},
+    ]},
+  { id:'koshary', art:'🍛', name:'عربية الكشري — نيويورك', name_en:'The Koshary Cart — New York', eyebrow:'الأكل الرسمي للبطولة',
+    story:'لقيت عربية كشري في وسط مانهاتن! صاحبها مصري من شبرا، حاطط علم مصر على العربية وبيدي خصم "لأي حد يقول نتيجة ماتش نيوزيلندا". الأمريكان واقفين طابور مش فاهمين إيه اللي بيحصل بس الريحة كسبتهم.',
+    story_en:"You found a koshary cart in the middle of Manhattan! The owner is Egyptian from Shubra, flag on the cart, giving a discount \"to anyone who knows the New Zealand score.\" The Americans are queuing, confused but conquered by the smell.",
+    fact:'💡 تشكيلة مصر في المونديال فيها <b>٨ لاعبين من الأهلي</b> — أكبر كتلة من نادي واحد في الفريق.',
+    fact_en:"💡 Egypt's World Cup squad includes <b>8 Al Ahly players</b> — the biggest single-club bloc in the team.",
+    choices:[
+      {kind:'dare', label:'🍷 تحدّي: اوصف الكشري لأجنبي', label_en:'🍷 Dare: describe koshary to a foreigner', dare:'اوصف طعم الكشري لأجنبي عمره ما جربه — ممنوع تقول "لذيذ" أو "حلو". ١٥ ثانية. +٤.', dare_en:'Describe koshary to a foreigner who never tried it — the words "delicious" and "tasty" are banned. 15 seconds. +4.', pts:4, penalty:-2},
+      {kind:'trivia', label:'🧠 سؤال: كام لاعب من الأهلي في التشكيلة؟', label_en:'🧠 Quiz: how many Al Ahly players in the squad?', q:'تشكيلة مصر في كاس العالم فيها كام لاعب من الأهلي؟', q_en:"How many Al Ahly players are in Egypt's World Cup squad?", opts:['٤','٨','١١'], opts_en:['4','8','11'], answer:1, pts:5, penalty:-2, fact:'٨ لاعبين — أكبر كتلة في الفريق.', fact_en:'8 players — the biggest bloc in the team.'},
+      {kind:'pts', label:'⭐ طبق كشري بالإكسترا', label_en:'⭐ A koshary plate with extras', pts:3},
+    ]},
+  { id:'hotel', art:'🏨', name:'فندق البعثة', name_en:'The Team Hotel', eyebrow:'ممنوع الاقتراب',
+    story:'وقفت قدام فندق المنتخب مع خمسين مشجع بيستنوا أي لمحة من اللاعيبة. واحد قافل مكتبه في مصر أسبوعين عشان "شغل ميداني في أمريكا" — الشغل الميداني هو الوقفة دي تحديداً.',
+    story_en:"You're outside the team hotel with fifty fans waiting for any glimpse of the players. One guy closed his office in Egypt for two weeks for \"field work in America\" — this stakeout is the field work.",
+    fact:'💡 أصغر لاعب في تشكيلة مصر هو <b>حمزة عبد الكريم — ١٨ سنة</b> ولاعب في برشلونة أتلتيك!',
+    fact_en:"💡 Egypt's youngest squad member is <b>Hamza Abdelkarim — 18 years old</b>, playing for Barcelona Atlètic!",
+    choices:[
+      {kind:'truth', label:'🫢 اعتراف: لو قابلت صلاح هتقوله إيه؟', label_en:'🫢 Confess: what would you tell Salah?', dare:'قول قدام القعدة أول جملة هتقولها لو قابلت صلاح وشك لوش — بجدية كاملة. +٥.', dare_en:'Say out loud the first sentence you would tell Salah face to face — in complete seriousness. +5.', pts:5, penalty:-2},
+      {kind:'trivia', label:'🧠 سؤال: أصغر لاعب في التشكيلة؟', label_en:'🧠 Quiz: youngest player in the squad?', q:'مين أصغر لاعب في تشكيلة مصر (١٨ سنة، برشلونة أتلتيك)؟', q_en:"Who is Egypt's youngest squad member (18, Barcelona Atlètic)?", opts:['حمزة عبد الكريم','إمام عاشور','زيزو'], opts_en:['Hamza Abdelkarim','Emam Ashour','Zizo'], answer:0, pts:5, penalty:-2, fact:'حمزة عبد الكريم — ١٨ سنة!', fact_en:'Hamza Abdelkarim — 18!'},
+      {kind:'social', label:'🤝 اجتماعي: ادّي مكانك في الصف الأول', label_en:'🤝 Social: give up your front-row spot', social:'give', amt:3},
+    ]},
+  { id:'nightmatch', art:'🌙', name:'سهرة ماتشات نص الليل', name_en:'The Midnight Match Marathon', eyebrow:'توقيت القاهرة',
+    story:'الماتشات بتوقيت أمريكا يعني السهر للفجر بتوقيت مصر. القهوة خلصت، والعيون حمرا، وواحد نام في الدقيقة ٨٥ وصحي على صوت الجول وبيمثل إنه شافه: "أيوة أيوة جميلة الهجمة دي".',
+    story_en:"US kickoff times mean staying up till dawn Cairo time. The coffee's finished, eyes are red, and someone fell asleep in the 85th minute, woke up to the goal roar and pretended they saw it: \"yes yes, beautiful move.\"",
+    fact:'💡 دفاع مصر في التصفيات استقبل <b>جولين بس في ١٠ ماتشات</b> — من أقوى أرقام أفريقيا الدفاعية!',
+    fact_en:"💡 Egypt's defense conceded <b>just 2 goals in 10 qualifiers</b> — one of Africa's strongest defensive records!",
+    choices:[
+      {kind:'dare', label:'🍷 تحدّي: مثّل مقاومة النوم', label_en:'🍷 Dare: act out fighting sleep', dare:'مثّل حد بيقاوم النوم في الدقيقة ٩٠ — الغفوة والصحيان المفاجئ و"أنا صاحي أنا صاحي". ١٠ ثواني. +٤.', dare_en:'Act out someone fighting sleep in the 90th minute — the nod-off, the jolt awake, the "I\'m awake I\'m awake." 10 seconds. +4.', pts:4, penalty:-2},
+      {kind:'trivia', label:'🧠 سؤال: دفاعنا استقبل كام جول في التصفيات؟', label_en:'🧠 Quiz: how many goals did we concede in qualifying?', q:'مصر استقبلت كام هدف في ١٠ ماتشات تصفيات؟', q_en:'How many goals did Egypt concede across 10 qualifiers?', opts:['٢','٥','٨'], opts_en:['2','5','8'], answer:0, pts:5, penalty:-2, fact:'جولين بس — حيطة سد!', fact_en:'Just 2 — a brick wall!'},
+      {kind:'risk', label:'🎲 مخاطرة: قهوة الفجر — مظبوطة؟', label_en:'🎲 Gamble: the dawn coffee — made right?', gamble:[{pts:5,msg:'مظبوطة وصحّتك للنهائي! +٥',msg_en:'Perfect brew — awake till the final! +5'},{pts:-2,msg:'محروقة… نمت في التتار. -٢',msg_en:'Burnt… you slept through extra time. -2'}]},
+    ]},
+  { id:'studio', art:'🎙️', name:'استوديو التحليل', name_en:'The Punditry Studio', eyebrow:'٣ ساعات كلام',
+    story:'الاستوديو: خمس محللين، تلات ساعات كلام قبل الماتش، لوحة تكتيك عليها أسهم أكتر من خريطة حرب. وفي الآخر كلهم بيقولوا نفس الجملة: "الكورة ملهاش عمرو" — بس بطرق مختلفة.',
+    story_en:"The studio: five pundits, three hours of pre-match talk, a tactics board with more arrows than a war map. And in the end they all say the same line — \"anything can happen in football\" — just in different ways.",
+    fact:'💡 المدير الفني حسام حسن هو <b>الهدّاف التاريخي لمصر بـ٦٩ هدف</b> — وصلاح وراه بـ٦٧ وبيطارد الرقم في المونديال!',
+    fact_en:"💡 Coach Hossam Hassan is <b>Egypt's all-time top scorer with 69 goals</b> — and Salah is chasing him on 67 during this World Cup!",
+    choices:[
+      {kind:'dare', label:'🍷 تحدّي: حلّل جول بجدية محلل', label_en:'🍷 Dare: analyze a goal like a pundit', dare:'حلّل آخر جول شفته بأسلوب محلل جامد — مصطلحات وإيدين وأسهم في الهوا. ٢٠ ثانية. +٥.', dare_en:'Analyze the last goal you saw in full pundit mode — jargon, hand gestures, arrows in the air. 20 seconds. +5.', pts:5, penalty:-2},
+      {kind:'trivia', label:'🧠 سؤال: الهدّاف التاريخي لمصر؟', label_en:"🧠 Quiz: Egypt's all-time top scorer?", q:'مين الهدّاف التاريخي لمنتخب مصر (٦٩ هدف)؟', q_en:"Who is Egypt's all-time top scorer (69 goals)?", opts:['حسام حسن','محمد صلاح','حسن الشاذلي'], opts_en:['Hossam Hassan','Mohamed Salah','Hassan El-Shazly'], answer:0, pts:6, penalty:-2, fact:'حسام حسن ٦٩ — وصلاح بـ٦٧ بيطارده وهو مدربه!', fact_en:'Hossam Hassan with 69 — Salah on 67, chasing his own coach!'},
+      {kind:'social', label:'⚔️ تحدّي لاعب: مناظرة تكتيك ٣٠ ثانية', label_en:'⚔️ Duel: a 30-second tactics debate', social:'duel', amt:3},
+    ]},
+  { id:'legends', art:'🏛️', name:'ممر الأساطير', name_en:'The Legends Corridor', eyebrow:'من ١٩٣٤ لدلوقتي',
+    story:'ممر عليه صور كل أجيال الفراعنة: بدلة ١٩٣٤ الصوف، نضارة ١٩٩٠، قفاز الحضري ٢٠١٨، وقميص فوز نيوزيلندا ٢٠٢٦ لسه ريحته جديدة. كل جيل حلم، وإحنا الجيل اللي شاف الحلم بيتحقق.',
+    story_en:"A corridor of every Pharaohs generation: the 1934 wool kit, the 1990 glasses, El-Hadary's 2018 gloves, and the 2026 New Zealand-win shirt still smelling new. Every generation dreamed; we're the generation watching the dream happen.",
+    fact:'💡 في إيطاليا ١٩٩٠ مصر تعادلت مع <b>هولندا وأيرلندا</b> — ورجعت ساعتها بعد غياب ٥٦ سنة، أطول غياب بين مشاركتين في التاريخ وقتها!',
+    fact_en:'💡 At Italia 1990 Egypt drew with <b>the Netherlands and Ireland</b> — returning after a 56-year gap, then the longest between World Cup matches in history!',
+    choices:[
+      {kind:'trivia', label:'🧠 سؤال: مصر تعادلت مع مين في ١٩٩٠؟', label_en:'🧠 Quiz: who did Egypt draw with in 1990?', q:'في مونديال ١٩٩٠ مصر تعادلت مع مين؟', q_en:'At the 1990 World Cup, Egypt drew against whom?', opts:['هولندا وأيرلندا','ألمانيا وإيطاليا','البرازيل وفرنسا'], opts_en:['Netherlands & Ireland','Germany & Italy','Brazil & France'], answer:0, pts:6, penalty:-2, fact:'تعادلين محترمين مع هولندا وأيرلندا!', fact_en:'Two respectable draws vs Netherlands & Ireland!'},
+      {kind:'truth', label:'🫢 اعتراف: أول ذكرى ليك مع المنتخب', label_en:'🫢 Confess: your first memory with the national team', dare:'احكي أول ذكرى ليك مع منتخب مصر — ماتش، جول، أو عياط. +٥.', dare_en:'Share your first memory with the Egypt national team — a match, a goal, or tears. +5.', pts:5, penalty:-2},
+      {kind:'pts', label:'⭐ اتصور جنب قفاز الحضري (+كارت)', label_en:"⭐ Photo next to El-Hadary's gloves (+card)", pts:3, card:true},
+    ]},
+  { id:'metlife', art:'🏆', name:'ستاد MetLife — النهائي', name_en:'MetLife Stadium — The Final', eyebrow:'النهاية', finale:true,
+    story:'النهاية! ستاد MetLife في نيوجيرسي — ١٩ يوليو، نهائي كاس العالم ٢٠٢٦. أول واحد يوصل ياخد بونص، بس اللعب يكمّل لحد ما الكل يوصل واللي معاه أعلى نقط يرفع الكاس!',
+    story_en:"The end! MetLife Stadium in New Jersey — July 19, the 2026 World Cup final. First to arrive gets a bonus, but play continues until everyone arrives — and the highest points lifts the cup!",
+    fact:'💡 نهائي ٢٠٢٦ في <b>ستاد MetLife</b> — أول نهائي كاس عالم للرجال في منطقة نيويورك/نيوجيرسي!',
+    fact_en:'💡 The 2026 final is at <b>MetLife Stadium</b> — the first men\'s World Cup final in the New York/New Jersey area!',
+    choices:[]},
+];
+
 const WORLDS={
   mermaid:{ id:'mermaid', emoji:'🌊', name:'عرايس البحر في الإسكندرية', name_en:'Mermaids of Sunken Alexandria',
     desc:'من كورنيش إسكندرية لعرش منارة فاروس الغارقة. أيقظوا المنارة النائمة.',
@@ -1842,6 +2036,20 @@ const WORLDS={
       {emoji:'🐯',name:'القط الشرس'},{emoji:'🐾',name:'البصمة الغامضة'},
     ],
     stops:[], pool:CATS_STOPS
+  },
+  worldcup:{ id:'worldcup', emoji:'🏆', name:'رحلة الفراعنة — كاس العالم ٢٠٢٦', name_en:'Pharaohs Road — World Cup 2026',
+    desc:'من قهوة الحتة لنهائي MetLife. شجّعوا مصر ماتش بماتش لحد الكاس — بحقائق حقيقية من مشوار ٢٠٢٦.',
+    desc_en:'From the local ahwa to the MetLife final. Cheer Egypt match by match — with real facts from the 2026 run.',
+    wash:'w-worldcup', ready:true, pointName:'جول', quest:'🎯 وصّلوا الفراعنة لرفع الكاس', quest_en:'🎯 Take the Pharaohs all the way to the cup',
+    finishLabel:'نهائي MetLife', finishLabel_en:'MetLife Final',
+    avatars:[
+      {emoji:'🦅',name:'صقر الفراعنة'},{emoji:'📣',name:'الحنجرة المبحوحة'},
+      {emoji:'🥁',name:'ريّس الطبلة'},{emoji:'🧿',name:'الخرزة الزرقا'},
+      {emoji:'📺',name:'محلل الكنبة'},{emoji:'🔮',name:'توقعاته دايماً غلط'},
+      {emoji:'⚽',name:'اللاعب رقم ١٢'},{emoji:'🎺',name:'أبو مزيكا'},
+      {emoji:'☕',name:'قهوة الشوط التاني'},{emoji:'🧣',name:'التلات ألوان'},
+    ],
+    stops:[], pool:WC_STOPS
   },
 };
 
@@ -1957,7 +2165,7 @@ function projectRoom(){
       uid, isMe:(uid===myUid), name:p.name||'لاعب', avatar:w.avatars[p.avatarIdx||0],
       points:p.points||0, total:p.total||0, stop:p.stop||0, hand:p.hand||[],
       chosen:p.chosen||{}, shield:!!p.shield, fort:!!p.fort, doubler:!!p.doubler, frozen:!!p.frozen,
-      arrived:!!p.arrived, _first:!!p.first, mission, earned:p.earned||0, treasures:p.treasures||0, acted:!!p.acted,
+      arrived:!!p.arrived, _first:!!p.first, specPts:p.specPts||0, mission, earned:p.earned||0, treasures:p.treasures||0, acted:!!p.acted,
     };
   }).filter(Boolean);
   const turnIdx=Math.max(0, order.indexOf(ROOM.turnUid));
@@ -2065,8 +2273,10 @@ function checkUrlRoom(){ const p=new URLSearchParams(location.search); const r=p
 
 /* ---------- ROOM binding + lobby ---------- */
 let _bound=false;
+let _boundCode=null;
 function bindRoom(){
-  if(_bound) return; _bound=true;
+  if(_bound && _boundCode===roomCode) return;   // rebind whenever the ROOM changes (new game/new theme)
+  _bound=true; _boundCode=roomCode; _ended=false; _sawIntro=false; _lastRound=1;
   NET.onRoom(room=>{
     projectRoom();
     if(!room){ return; }
@@ -2149,19 +2359,20 @@ function maybeShowMyMissionPop(){
 // scoring + how-to-win block, reused by intro and how-to
 function scoringHTML(){
   return LANG==='en'
-    ? '<p>🏁 <b>Your points ARE your position.</b> Earn points and your token moves along the map automatically — no spending.</p>'
-      +'<p>🔄 <b>Each turn = ONE move.</b> Pick a question / dare / social / gamble → you score → you may reach a new stop → you end your turn → next player.</p>'
-      +'<p>🧠 <b>Quiz:</b> right answer = big points, wrong = a small penalty. <b>🎯 Predict</b> others\' answers when watching for +2.</p>'
-      +'<p>🍷🧩 <b>Dares & brain challenges:</b> the table votes 👍/👎 whether you did it — majority decides your points.</p>'
-      +'<p>🎯 <b>Secret mission:</b> finish it to win a <b>power card</b> (storm, freeze, heist…) that can flip the game.</p>'
-      +'<p>🏆 <b>Winning:</b> first to the finale gets a big bonus, but play continues until everyone arrives — the <b>highest total points</b> wins. So racing fast AND scoring high both matter.</p>'
-    : '<p>🏁 <b>نقطك هي مكانك في السباق.</b> كل ما تكسب نقط، توكنك يتقدّم على الخريطة أوتوماتيك — مفيش صرف.</p>'
-      +'<p>🔄 <b>كل دور = حركة واحدة.</b> اختار سؤال/تحدّي/اجتماعي/مخاطرة → بتكسب نقط → ممكن توصل محطة → تسيب الدور للّي بعدك.</p>'
-      +'<p>🧠 <b>السؤال:</b> صح = نقط كتير، غلط = خصم بسيط. ولمّا تتفرّج، <b>🎯 توقّع</b> إجابة غيرك وخد +٢.</p>'
-      +'<p>🍷🧩 <b>التحديات والألغاز:</b> القعدة بتصوّت 👍/👎 إنك عملتها — الأغلبية بتقرّر نقطك.</p>'
-      +'<p>🎯 <b>مهمتك السرّية:</b> خلّصها وخد <b>كارت قوة</b> (إعصار، تجميد، سرقة…) يقلب اللعبة.</p>'
-      +'<p>🏆 <b>الكسب:</b> أول واحد يوصل النهاية ياخد بونص كبير، بس اللعب يكمّل لحد ما الكل يوصل — واللي معاه <b>أعلى نقط</b> يكسب. يعني السرعة والنقط الاتنين مهمين.</p>';
+    ? '<p>🧮 <b>The one rule:</b> every <b>3 points</b> pushes your token one stop forward — automatically. Your points ARE your position. No spending, no math homework.</p>'
+      +'<p>💰 <b>What pays what:</b> 🧠 Quiz = <b>+5/6</b> (wrong = −2, and it stings) · 🍷 Dare / 🫢 Confession = <b>+4/5</b> (chicken out = −2 AND the table saw you) · 🤝 Give = gift points · 😈 Sabotage = ruin someone\'s day · ⚔️ Duel = winner takes the pot.</p>'
+      +'<p>🔥 <b>High stakes:</b> 🎲 Gambles show you exactly what you can win or lose (e.g. +6 or −2) — that\'s where races flip. Brave or broke.</p>'
+      +'<p>👀 <b>Not your turn? Still earning:</b> every quiz goes to EVERYONE\'s phone. Answer right = <b>+2</b>, every time. Sleepers lose.</p>'
+      +'<p>🎯 <b>Secret mission</b> = a power card that can flip the whole game. Quietly work on it.</p>'
+      +'<p>🏆 <b>Winning:</b> first to the finish grabs <b>+10</b>, but the game runs until everyone arrives — <b>highest TOTAL points wins</b>. The end screen shows exactly where every point came from, so no conspiracy theories.</p>'
+    : '<p>🧮 <b>القاعدة الوحيدة:</b> كل <b>٣ نقط</b> بيتحرك توكنك محطة لقدام — أوتوماتيك. نقطك هي مكانك. مفيش صرف ولا واجب حساب.</p>'
+      +'<p>💰 <b>إيه بيجيب إيه:</b> 🧠 السؤال = <b>+٥/٦</b> (الغلط = −٢ وبتوجع) · 🍷 التحدّي / 🫢 الاعتراف = <b>+٤/٥</b> (تطنّش = −٢ والقعدة كلها شافتك) · 🤝 ادّي = هدية نقط · 😈 لخبطة = تنكيد على حد · ⚔️ المبارزة = الكسبان ياخد الرهان.</p>'
+      +'<p>🔥 <b>الرهانات الكبيرة:</b> 🎲 المخاطرة مكتوب عليها بالظبط ممكن تكسب أو تخسر كام (مثلاً +٦ أو −٢) — هنا السباقات بتتقلب. يا جدع يا مفلس.</p>'
+      +'<p>👀 <b>مش دورك؟ برضه بتكسب:</b> كل سؤال بينزل على موبايلات الكل. جاوب صح = <b>+٢</b> كل مرة. اللي بينام بيخسر.</p>'
+      +'<p>🎯 <b>مهمتك السرّية</b> = كارت قوة يقلب اللعبة كلها. اشتغل عليها في السر.</p>'
+      +'<p>🏆 <b>الكسب:</b> أول واحد يوصل النهاية ياخد <b>+١٠</b>، بس اللعبة شغالة لحد ما الكل يوصل — و<b>أعلى نقط إجمالية هي اللي تكسب</b>. وشاشة النهاية بتوريك كل نقطة جت منين، فمفيش نظرية مؤامرة.</p>';
 }
+
 function showWorldIntro(){
   const w=W(); if(!w){ const raw=myPlayerRaw(); if(raw&&!raw._sawMission){ showMissionPop(); patchMe({_sawMission:true}); } return; }
   $('introEmblem').textContent=w.emoji;
@@ -2348,7 +2559,7 @@ async function maybeAwardPredict(){
   if(ts.by===myUid) return; // the active player scores via their own answer flow
   if(_ansAwarded[ts.ts]) return; const myAns=ts.answers?ts.answers[myUid]:null; if(myAns==null) return;
   _ansAwarded[ts.ts]=true;
-  if(myAns===ts.answer){ const raw=myPlayerRaw(); if(raw) await patchMe({ points:(raw.points||0)+2, total:(raw.total||0)+2 }); }
+  if(myAns===ts.answer){ const raw=myPlayerRaw(); if(raw) await patchMe({ points:(raw.points||0)+2, total:(raw.total||0)+2, specPts:(raw.specPts||0)+2 }); }
 }
 // table judging vote
 async function castVote(v){ try{ await NET.setVote(myUid, v); }catch(e){} }
@@ -2373,11 +2584,12 @@ function choiceFeeds(ch){
 // tag → label + class for the choice's nature
 function choiceTag(ch){
   switch(ch.kind){
-    case 'risk': return '<span class="risk">'+T('🎲 مخاطرة','🎲 Gamble')+'</span>';
-    case 'dare': return '<span class="dare">'+T('🍷 تحدّي','🍷 Dare')+'</span>';
-    case 'truth': return '<span class="dare">'+T('🫢 اعتراف','🫢 Confess')+'</span>';
-    case 'trivia': return '<span class="trivia">'+T('🧠 سؤال','🧠 Quiz')+'</span>';
-    case 'social': return ch.social==='duel'?'<span class="social">'+T('⚔️ تحدّي لاعب','⚔️ Challenge')+'</span>':'<span class="social">'+T('🤝 اجتماعي','🤝 Social')+'</span>';
+    case 'risk': { let hi=6, lo=-2; if(ch.gamble&&ch.gamble.length){ hi=Math.max(...ch.gamble.map(g=>g.pts||0)); lo=Math.min(...ch.gamble.map(g=>g.pts||0)); }
+      return '<span class="risk">'+T('🎲🔥 يا +'+AR(hi)+' يا '+AR(lo),'🎲🔥 +'+hi+' or '+lo)+'</span>'; }
+    case 'dare': return '<span class="dare">'+T('🍷 تحدّي +','🍷 Dare +')+AR(ch.pts||4)+'</span>';
+    case 'truth': return '<span class="dare">'+T('🫢 اعتراف +','🫢 Confess +')+AR(ch.pts||5)+'</span>';
+    case 'trivia': return '<span class="trivia">'+T('🧠 سؤال +','🧠 Quiz +')+AR(ch.pts||5)+'</span>';
+    case 'social': return ch.social==='duel'?'<span class="social">'+T('⚔️ مبارزة +','⚔️ Duel +')+AR(ch.amt||3)+'</span>':(ch.social==='sabotage'?'<span class="social">'+T('😈 لخبطة','😈 Sabotage')+'</span>':'<span class="social">'+T('🤝 ادّي ','🤝 Give ')+AR(ch.amt||3)+'</span>');
     default: {
       const bits=[]; if(ch.treasure) bits.push('<span class="card">'+T('💎 كنز','💎 Treasure')+'</span>');
       if(ch.pts) bits.push('<span class="pts">⭐ +'+AR(ch.pts)+'</span>');
@@ -2529,6 +2741,7 @@ function openDareTurn(ch){
 let _pendingDare=null, _judgeFinalized=false;
 // apply the dare outcome (did=true → full points, false → penalty)
 async function resolveDare(ch, did){
+  if(!isMyTurn()){ closeModal('dareModal'); _pendingDare=null; return; }   // stale modal after a skip — ignore
   const raw=myPlayerRaw(); const m=me(); const patch={['chosen/'+m.stop]:true, acted:true};
   if(did){ applyGain(patch,raw,ch.pts||4); deriveStopAndMission(patch,raw,'gamble'); toast(T('🍷 عاش! +','🍷 Nice! +')+AR(ch.pts||4)); }
   else { applyGain(patch,raw,ch.penalty||-2); toast(T('🐔 طنّشت... ','🐔 Chickened out... ')+AR(ch.penalty||-2)); }
@@ -2561,6 +2774,7 @@ function openTrivia(ch, idx){
   openModal('triviaModal');
 }
 async function answerTrivia(i){
+  if(!isMyTurn() || !_trivia){ closeModal('triviaModal'); _trivia=null; return; }   // stale modal after a skip — ignore
   const ch=_trivia; const m=me(); const raw=myPlayerRaw(); closeModal('triviaModal');
   // record my own answer + reveal to everyone (so all answers resolve together)
   await pubTurn({ phase:'trivia', revealed:true, picked:i, ['answers/'+myUid]:i });
@@ -2631,6 +2845,15 @@ async function skipAwayPlayer(){
   if(away.isMe){ toast(T('ده دورك إنت 🙂','That\'s your own turn 🙂')); return; }
   const since=(Date.now()-(ROOM.turnAt||0))/1000;
   if(since < AFK_SECONDS){ toast(T('استنى شوية لسه بيفكّر','Give them a moment')); return; }
+  // claim guard: only ONE device performs the skip (atomic — prevents double-skip races)
+  try{
+    const rc=(ROOM.code||roomCode);
+    let claimed=false; const myTurnAt=ROOM.turnAt;
+    await DB.ref('rooms/'+rc+'/skipClaim').transaction(cur=>{ if(cur===myTurnAt) return; claimed=true; return myTurnAt; });
+    if(!claimed) return;                                   // someone else claimed this skip
+    const t2=await DB.ref('rooms/'+rc+'/turnAt').get();
+    if(t2.val()!==myTurnAt) return;                        // turn already moved on
+  }catch(e){}
   // clear their half-finished move + reset acted, then pass the turn
   try{ await NET.setPlayer(away.uid, { acted:false }); }catch(e){}
   logEventDB('⏭️', T('القعدة عدّت دور ','The table skipped ')+away.name+T(' (مشغول)',' (away)'));
@@ -2663,8 +2886,8 @@ async function arriveMe(){
   const raw=myPlayerRaw(); if(raw.arrived) return;
   const patch={ arrived:true };
   if(!ROOM.anyArrived){ patch.points=(raw.points||0)+FIRST_BONUS; patch.total=(raw.total||0)+FIRST_BONUS; patch.first=true;
-    await NET.update({ anyArrived:true }); toast(T('🏁 وصلت الأول! +','🏁 First to arrive! +')+AR(FIRST_BONUS)+T(' بونص!',' bonus!')); logEventDB('🏁',me().name+' وصل الأول! +'+AR(FIRST_BONUS)); }
-  else { toast(T('🏁 وصلت المنارة!','🏁 You reached the lighthouse!')); logEventDB('🏁',me().name+' وصل المنارة'); }
+    await NET.update({ anyArrived:true }); toast(T('🏁 وصلت الأول! +'+AR(FIRST_BONUS)+' بونص!','🏁 First to arrive! +'+FIRST_BONUS+' bonus!')); logEventDB('🏁',me().name+T(' وصل الأول! +',' arrived first! +')+AR(FIRST_BONUS)); }
+  else { toast(T('🏁 وصلت خط النهاية!','🏁 You reached the finish line!')); logEventDB('🏁',me().name+T(' وصل النهاية',' reached the finish')); }
   await patchMe(patch);
   await passTurn();
 }
@@ -2856,8 +3079,17 @@ function openGangUp(){
 
 /* turn handoff is passTurn() (Firebase). Recap shown when round increments. */
 let _lastRound=1; let _lastReplyT=0;
+let _lastTurnUid=null, _lastTurnAt=null;
 function handleRoomUpdate(){
   projectRoom(); if(!S) return;
+  // if MY turn just moved away (skip or normal end), close any action modals so no stale taps fire
+  if(_lastTurnUid===myUid && ROOM.turnUid!==myUid){
+    closeModal('triviaModal'); closeModal('dareModal'); closeModal('storyModal');
+    _trivia=null; _pendingDare=null;
+    if(ROOM.skipClaim && ROOM.skipClaim===_lastTurnAt){
+      toast(T('⏭️ دورك اتعدّى — ولا يهمّك، الدور الجاي جايلك 😄','⏭️ Your turn was skipped — no stress, next round is yours 😄')); }
+  }
+  _lastTurnUid=ROOM.turnUid; _lastTurnAt=ROOM.turnAt;
   renderPlay();
   updateMsgBadge();
   handleReactions();
@@ -2976,7 +3208,8 @@ function renderMap(){
     mermaid:{ bg:'radial-gradient(80% 60% at 70% 15%,rgba(150,230,245,.4),transparent 60%),linear-gradient(180deg,#cfe7ec,#6da7bd 60%,#3b7d95)', stroke:'#1f7fa0', glow:'#7fe0f5', dash:'', width:3.4 },
     cairo:{ bg:'radial-gradient(70% 50% at 30% 10%,rgba(255,79,216,.25),transparent 60%),linear-gradient(180deg,#241640,#3a1d5e 55%,#120b22)', stroke:'#ff4fd8', glow:'#00e5ff', dash:'', width:3 },
     afreet:{ bg:'radial-gradient(75% 55% at 60% 12%,rgba(240,210,138,.4),transparent 60%),linear-gradient(180deg,#e7c98f,#caa15a 55%,#9c6f3a)', stroke:'#9c5a1e', glow:'#f3d79a', dash:'0.1 5', width:3.4 },
-    cats:{ bg:'radial-gradient(75% 55% at 65% 12%,rgba(224,195,238,.35),transparent 60%),linear-gradient(180deg,#3a2f4a,#574067 55%,#2c2238)', stroke:'#d7a7ec', glow:'#f0d9ff', dash:'7 5', width:3 }
+    cats:{ bg:'radial-gradient(75% 55% at 65% 12%,rgba(224,195,238,.35),transparent 60%),linear-gradient(180deg,#3a2f4a,#574067 55%,#2c2238)', stroke:'#d7a7ec', glow:'#f0d9ff', dash:'7 5', width:3 },
+    worldcup:{ bg:'repeating-linear-gradient(180deg,#2e8c46 0,#2e8c46 9%,#27793c 9%,#27793c 18%),radial-gradient(70% 50% at 50% 8%,rgba(255,226,122,.35),transparent 60%)', stroke:'#ffffff', glow:'#ffe27a', dash:'4 3', width:3.2 }
   };
   const th=themes[W().id]||themes.mermaid; cv.style.background=th.bg;
   // smooth Catmull-Rom spline through the stops
@@ -3033,7 +3266,16 @@ function endGame(){
   const winner=ranked[0];
   $('winEmblem').textContent=winner.avatar.emoji;
   $('winName').textContent=(winner.isMe?T('إنت كسبت! 🎉','You won! 🎉'):(winner.name+T(' كسب!',' won!')))+T(' — أعلى نقط',' — most points');
-  renderBoard('winBoard'); go('win');
+  renderBoard('winBoard');
+  // transparent score breakdown so the result never feels random
+  const bk=$('winBreak'); if(bk){ bk.innerHTML = ranked.map(p=>{
+    const bonus=p._first?FIRST_BONUS:0; const spec=p.specPts||0; const moves=Math.max(0,(p.points||0)-bonus-spec);
+    let line='<b>'+p.avatar.emoji+' '+p.name+'</b>: '+T('حركات ','moves ')+AR(moves);
+    if(spec) line+=' + '+T('توقعات ','quiz answers ')+AR(spec);
+    if(bonus) line+=' + 🏁 '+T('بونص الأولانية ','first bonus ')+AR(bonus);
+    line+=' = <b>'+AR(p.points)+'</b>';
+    return line; }).join('<br>'); }
+  go('win');
 }
 function finishGame(p){ arriveMe(); }
 function playSpecial(){ /* handled via playCard target picker in MP */ }
@@ -3045,6 +3287,7 @@ function applyStaticStrings(){
   const ph=(id,ar,en)=>{ const el=$(id); if(el) el.placeholder = T(ar,en); };
   // landing
   set('heroTitle','الرحلة','The Journey');
+  set('winTitle','🏁 السباق خلص!','🏁 Race over!');
   set('heroSub','سباق حكايات في مصر الفانتازيا','A story-race through fantasy Egypt');
   set('heroTag','٢–١٠ لاعبين · كل واحد على موبايله','2–10 players · each on their phone');
   set('btnCreate','🎲 اعمل غرفة جديدة','🎲 Create a room');
@@ -3083,18 +3326,6 @@ function applyStaticStrings(){
   set('offerTitle','📨 ابعت عرض','📨 Send an offer');
   set('messagesTitle','📨 الرسايل والعروض','📨 Messages & offers');
   set('gangTitle','😈 حرّض لاعب','😈 Rally a player');
-  const wt=$('winTitle'); if(wt) wt.textContent=T('النتيجة','Result');
-  const hb=$('howtoBody'); if(hb){ if(!hb._ar) hb._ar=hb.innerHTML; hb.innerHTML = LANG==='en'
-    ? '<p>📱 <b>Everyone on their own phone.</b> One person creates a room and gets a code + QR; the rest join by code or scan. Once 2+ are in, anyone can start.</p>'
-      +'<p>🌍 <b>One shared world</b> — same map, same race, each with a character.</p>'
-      +'<p>🏁 <b>Goal: reach the Pharos lighthouse.</b> Your points ARE your position — earn more points, move further automatically. No spending, no fuss.</p>'
-      +'<p>🔄 <b>Turn-based.</b> The bar up top shows whose turn it is. On your turn, pick a move at the stop, then tap "End your turn".</p>'
-      +'<p>💡 <b>Every stop is a real place in Egypt</b> + a rare fact + 3 choices: 🧠 Quiz, 🍷 Dare, 🤝 Social, or 🎲 Gamble.</p>'
-      +'<p>🎯 <b>Your mission is secret.</b> Finish it and get a <b>power card</b> that flips the game (storm, freeze, heist...).</p>'
-      +'<p>🎴 <b>Cards.</b> ✨ Miracles help you, ⚔️ Actions hit others (you choose who), ⭐ power cards are the strongest.</p>'
-      +'<p>📨 <b>It\'s social!</b> When it\'s not your turn, send the active player an offer (card/points/words) to sway them. They accept or refuse.</p>'
-      +'<p>🏆 <b>First to the lighthouse gets a big bonus</b> — but play continues until everyone arrives, and whoever has the most points wins. Even someone who arrived can be overtaken!</p>'
-    : hb._ar; }
   // language button label
   const lb=$('langBtn'); if(lb) lb.textContent = LANG==='en'?'🇪🇬 عربي':'🇬🇧 English';
   // round guide
@@ -3102,7 +3333,25 @@ function applyStaticStrings(){
   const hw=$('howWinBtn'); if(hw) hw.textContent = T('💡 إزاي تكسب؟ (النقط والخطة)','💡 How to win? (points & strategy)');
   const rgb=$('rgBody'); if(rgb) rgb.innerHTML = LANG==='en'
     ? 'Pick a move at the stop: <b>🧠 Quiz</b> (right = big points, wrong = penalty) · <b>🍷 Dare / 🫢 Confess</b> (do it for points or chicken out and lose) · <b>🤝 Social</b> (give points to an ally or sabotage a rival) · <b>⚔️ Challenge a player</b> (the table judges) · <b>🎲 Gamble</b> (luck — big win or loss).<br>Points move you along the map automatically. Done your move? Tap <b>"End your turn"</b>. When it\'s not your turn, send an offer via the <b>📨 Messages</b> button.'
-    : 'اختار حركة من المحطة: <b>🧠 سؤال</b> (جاوب صح = نقط كتير، غلط = خصم) · <b>🍷 تحدّي / 🫢 اعتراف</b> (اعملها وخد نقط أو طنّش وتخسر) · <b>🤝 اجتماعي</b> (إدِّي نقط لحليف أو لخبط منافس) · <b>⚔️ تحدّي لاعب</b> (اتحدّى حد والقعدة تحكم) · <b>🎲 مخاطرة</b> (حظ — مكسب كبير أو خسارة).<br>النقط بتحرّكك على الخريطة أوتوماتيك. خلّصت حركتك؟ دوس <b>"خلّص دورك"</b>. وانت مش دورك، ابعت عرض للّي دوره من زرار <b>📨 الرسايل</b>.';
+    : 'اختار حركة واحدة من المحطة: <b>🧠 سؤال</b> (صح = نقط حلوة، غلط = خصم بسيط) · <b>🍷 تحدّي / 🫢 اعتراف</b> (اعملها قدام الناس وخد نقطك، أو طنّش والقعدة تسجّلها عليك) · <b>🤝 اجتماعي</b> (ادّي حليف أو لخبط منافس) · <b>⚔️ مبارزة</b> (والقعدة هي الحكم) · <b>🎲 مخاطرة</b> (مكتوب عليها المكسب والخسارة — قرارك).<br>نقطك بتحرّكك على الخريطة لوحدها. خلّصت حركتك؟ دوس <b>«خلّص دورك»</b> وسيبها للّي بعدك. ومش دورك؟ جاوب الأسئلة برضه (+٢) أو ابعت عرض من <b>📨 الرسايل</b>.';
+  // how-to-play (bilingual, works for every world)
+  const hb=$('howtoBody'); if(hb) hb.innerHTML = LANG==='en'
+    ? '<p>📱 <b>Everyone on their own phone.</b> One person makes a room (code + QR), the rest join. 2+ players? Anyone can hit start.</p>'
+      +'<p>🌍 <b>Pick a world</b> — Alexandria mermaids, Cairo 2075, the Cat State, the Genie Oasis, or the World Cup 2026 fan trip. Same race, one map, everyone gets a character (you pick or change it inside the room).</p>'
+      +'<p>🏁 <b>Goal: reach the finish.</b> Every 3 points auto-moves you one stop. One move per turn, then "End your turn."</p>'
+      +'<p>💡 <b>Every stop = a real place</b> + a rare true fact + 3 choices with their exact points written on them.</p>'
+      +'<p>👀 <b>Quizzes hit every phone at once</b> — answer even when it\'s not your turn (+2 each). Dares are one-person spotlight moments and the TABLE votes 👍/👎 whether they count.</p>'
+      +'<p>🎯 <b>Secret mission → power card.</b> 📨 Offers, 😈 gang-ups and ⚔️ duels keep everyone in each other\'s business.</p>'
+      +'<p>📴 <b>Someone vanished mid-game?</b> (phone call, "one sec", fridge trip) — after 75 seconds anyone can skip their turn and the game rolls on. They jump back in next round like nothing happened.</p>'
+      +'<p>🏆 <b>First to finish grabs +10, highest TOTAL points wins.</b> The end screen shows where every point came from.</p>'
+    : '<p>📱 <b>كل واحد على موبايله.</b> واحد يعمل أوضة (كود + QR) والباقي يدخلوا. بقيتوا اتنين أو أكتر؟ أي حد يدوس ابدأ.</p>'
+      +'<p>🌍 <b>اختاروا عالم</b> — عرايس إسكندرية، القاهرة ٢٠٧٥، دولة القطط، واحة العفاريت، أو رحلة كاس العالم ٢٠٢٦. نفس السباق، خريطة واحدة، وكل واحد بشخصية (بتختارها أو تغيّرها جوّه الأوضة).</p>'
+      +'<p>🏁 <b>الهدف: توصل خط النهاية.</b> كل ٣ نقط بتتحرك محطة لوحدك. حركة واحدة كل دور، وبعدين «خلّص دورك».</p>'
+      +'<p>💡 <b>كل محطة مكان حقيقي</b> + معلومة نادرة صح + ٣ اختيارات مكتوب على كل واحد نقطه بالظبط.</p>'
+      +'<p>👀 <b>الأسئلة بتنزل على موبايلات الكل مع بعض</b> — جاوب حتى لو مش دورك (+٢ كل صح). التحديات لحظة واحد لوحده في النص والقعدة هي اللي بتصوّت 👍/👎 اتعملت ولا لأ.</p>'
+      +'<p>🎯 <b>مهمة سرّية → كارت قوة.</b> ومعاها 📨 عروض و😈 تحريض و⚔️ مبارزات — يعني محدش سايب حد في حاله.</p>'
+      +'<p>📴 <b>حد اختفى في النص؟</b> (تليفون، «ثانية واحدة»، رحلة للتلاجة) — بعد ٧٥ ثانية أي حد يقدر يعدّي دوره واللعبة تكمّل. وهو يرجع الدور الجاي كأن مفيش حاجة حصلت.</p>'
+      +'<p>🏆 <b>أول واحد يوصل ياخد +١٠، وأعلى نقط إجمالية تكسب.</b> وشاشة النهاية بتقولك كل نقطة جت منين.</p>';
 }
 
 /* ---------- INIT ---------- */
